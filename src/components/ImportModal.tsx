@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { useStore } from '../store-instance';
-import { persist } from '../db';
 
 interface Props {
   onToast: (msg: string) => void;
@@ -11,7 +10,7 @@ export const ImportModal: React.FC<Props> = ({ onToast }) => {
   const overlayRef = useRef<HTMLDivElement>(null);
   const importCards = useStore(s => s.importCards);
 
-  const doImport = () => {
+  const doImport = async () => {
     if (!json.trim()) return;
     try {
       const data = JSON.parse(json);
@@ -19,8 +18,7 @@ export const ImportModal: React.FC<Props> = ({ onToast }) => {
         onToast('Invalid format: expected "cards" array');
         return;
       }
-      const count = importCards(data.deck || 'Default', data.source || '', data.cards);
-      persist();
+      const count = await importCards(data.deck || 'Default', data.source || '', data.cards);
       setJson('');
       overlayRef.current?.classList.remove('active');
       onToast(`Imported ${count} cards to "${data.deck || 'Default'}"`);

@@ -1,53 +1,46 @@
 import { create } from 'zustand';
-import { getDB } from './db';
-import { SqlCardQuery } from './services/SqlCardQuery';
-import { SqlCardMutation } from './services/SqlCardMutation';
-import type { Flashcard, Deck, ReviewEntry, CardInput } from './services/types';
+import { CardQuery } from './services/CardQuery';
+import { CardMutation } from './services/CardMutation';
+import type { Flashcard, Deck, CardInput } from './services/types';
 
-let cardQuery: SqlCardQuery;
-let cardMutation: SqlCardMutation;
-
-export function initStore(): void {
-  const db = getDB();
-  cardQuery = new SqlCardQuery(db);
-  cardMutation = new SqlCardMutation(db);
-}
+export const cardQuery = new CardQuery();
+export const cardMutation = new CardMutation();
 
 interface FlashcardState {
   version: number;
-  importCards: (deckName: string, source: string, cards: CardInput[]) => number;
-  deleteCard: (id: string) => void;
-  deleteDeck: (name: string) => number;
+  importCards: (deckName: string, source: string, cards: CardInput[]) => Promise<number>;
+  deleteCard: (id: string) => Promise<void>;
+  deleteDeck: (name: string) => Promise<number>;
   bump: () => void;
-  togglePauseCategory: (category: string) => void;
+  togglePauseCategory: (category: string) => Promise<void>;
 }
 
 export const useStore = create<FlashcardState>((set) => ({
   version: 0,
 
-  importCards: (deckName, source, cards) => {
-    const count = cardMutation.addCards(deckName, source, cards);
+  importCards: async (deckName, source, cards) => {
+    const count = await cardMutation.addCards(deckName, source, cards);
     set(s => ({ version: s.version + 1 }));
     return count;
   },
 
-  deleteCard: (id) => {
-    cardMutation.deleteCard(id);
+  deleteCard: async (id) => {
+    await cardMutation.deleteCard(id);
     set(s => ({ version: s.version + 1 }));
   },
 
-  deleteDeck: (name) => {
-    const count = cardMutation.deleteCardsByDeck(name);
+  deleteDeck: async (name) => {
+    const n = await cardMutation.deleteCardsByDeck(name);
     set(s => ({ version: s.version + 1 }));
-    return count;
+    return n;
   },
 
   bump: () => set(s => ({ version: s.version + 1 })),
 
-  togglePauseCategory: (category) => {
-    cardMutation.togglePauseCategory(category);
+  togglePauseCategory: async (category) => {
+    await cardMutation.togglePauseCategory(category);
     set(s => ({ version: s.version + 1 }));
   },
 }));
 
-export { cardQuery, cardMutation, type Flashcard, type Deck, type ReviewEntry, type CardInput };
+export type { Flashcard, Deck, CardInput };
