@@ -46,11 +46,26 @@ export function ratingClass(r: number): string {
   return classes[r] ?? '';
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 export function renderCloze(text: string, revealed: boolean): string {
-  return text.replace(/\{\{c\d+::([^}]+)\}\}/g, (_, answer: string) => {
-    if (revealed) return `<span class="cloze">${answer}</span>`;
-    return `<span class="cloze-hidden">[...]</span>`;
-  });
+  // Split by cloze markers, escape raw text, then reassemble with safe HTML spans
+  const parts = text.split(/(\{\{c\d+::[^}]+\}\})/g);
+  return parts.map(part => {
+    const m = part.match(/^\{\{c\d+::([^}]+)\}\}$/);
+    if (m) {
+      if (revealed) return `<span class="cloze">${escapeHtml(m[1])}</span>`;
+      return `<span class="cloze-hidden">[...]</span>`;
+    }
+    return escapeHtml(part);
+  }).join('');
 }
 
 export function uid(): string {

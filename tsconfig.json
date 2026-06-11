@@ -12,5 +12,6 @@
     "outDir": "dist",
     "sourceMap": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/services/_turso"]
 }
