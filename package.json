@@ -2,9 +2,13 @@
   "name": "fsrs-flashcards",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter @fsrs/client dev",
+    "dev": "concurrently -n client,server -c cyan,yellow \"pnpm dev:client\" \"pnpm dev:server\"",
+    "dev:client": "pnpm --filter @fsrs/client dev",
     "dev:server": "pnpm --filter @fsrs/server dev",
     "build": "pnpm --filter @fsrs/client build",
     "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
   }
 }
