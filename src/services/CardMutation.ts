@@ -32,6 +32,16 @@ export class CardMutation implements ICardMutation {
       [cid, rating, result.card.state, result.card.due.toISOString(), result.card.stability, result.card.difficulty, result.log.elapsed_days, result.log.last_elapsed_days, result.log.scheduled_days, result.log.learning_steps, result.log.review.toISOString()]);
   }
 
+  async recordReview(id: string, fsrs: Card, rating: number, result: { card: Card; log: { elapsed_days: number; last_elapsed_days: number; scheduled_days: number; learning_steps: number; review: Date } }) {
+    // Fire both writes concurrently — single await
+    await Promise.all([
+      ex('UPDATE cards SET fsrs_due=?,fsrs_stability=?,fsrs_difficulty=?,fsrs_elapsed_days=?,fsrs_scheduled_days=?,fsrs_reps=?,fsrs_lapses=?,fsrs_state=?,fsrs_last_review=?,fsrs_learning_steps=? WHERE id=?',
+        [fsrs.due.toISOString(), fsrs.stability, fsrs.difficulty, fsrs.elapsed_days, fsrs.scheduled_days, fsrs.reps, fsrs.lapses, fsrs.state, fsrs.last_review?.toISOString() ?? null, fsrs.learning_steps, id]),
+      ex('INSERT INTO review_logs (card_id,rating,state,due,stability,difficulty,elapsed_days,last_elapsed_days,scheduled_days,learning_steps,review) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+        [id, rating, result.card.state, result.card.due.toISOString(), result.card.stability, result.card.difficulty, result.log.elapsed_days, result.log.last_elapsed_days, result.log.scheduled_days, result.log.learning_steps, result.log.review.toISOString()]),
+    ]);
+  }
+
   async deleteCard(id: string) { await ex('DELETE FROM review_logs WHERE card_id = ?', [id]); await ex('DELETE FROM cards WHERE id = ?', [id]); }
 
   async deleteCardsByDeck(name: string) {

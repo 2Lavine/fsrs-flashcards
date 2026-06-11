@@ -16,6 +16,7 @@ export const ReviewPage: React.FC = () => {
   const [revealed, setRevealed] = useState(false);
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const [showAllCats, setShowAllCats] = useState(false);
+  const [dueCards, setDueCards] = useState<Flashcard[]>([]);
 
   // Async data
   const [stats, setStats] = useState<ReturnType<typeof cardQuery.getStats> extends Promise<infer T> ? T : never>({ total: 0, due: 0, new: 0, learning: 0, review: 0, totalReviews: 0, today: 0, avgDifficulty: '-' });
@@ -41,8 +42,10 @@ export const ReviewPage: React.FC = () => {
     });
   }, [version, deckId]);
 
+  // Fetch due cards when version/category/deck changes
   useEffect(() => {
     cardQuery.getDueCards(category || undefined, pausedCategories, deckId || undefined).then(cards => {
+      setDueCards(cards);
       const next = cards[0] ?? null;
       setCard(next);
       setPreviewCache(next ? preview(next) : null);
@@ -51,16 +54,26 @@ export const ReviewPage: React.FC = () => {
     });
   }, [version, category, deckId]);
 
-  const handleRate = useCallback(async (r: Grade) => {
+  // Advance to next card locally — no API call
+  const advance = useCallback((afterCards?: Flashcard[]) => {
+    const queue = afterCards ?? dueCards.slice(1);
+    setDueCards(queue);
+    const next = queue[0] ?? null;
+    setCard(next);
+    setPreviewCache(next ? preview(next) : null);
+    setRevealed(false);
+  }, [dueCards]);
+
+  const handleRate = useCallback((r: Grade) => {
     if (!card || !previewCache) return;
     const prevFSRS = { ...card.fsrs, due: new Date(card.fsrs.due), last_review: card.fsrs.last_review ? new Date(card.fsrs.last_review) : undefined };
     const result = doReview(card, r);
     card.fsrs = result.card;
-    await cardMutation.updateCardFSRS(card.id, card.fsrs);
-    await cardMutation.insertReviewLog(card.id, r, result);
+    cardMutation.recordReview(card.id, card.fsrs, r, result);
     history.push({ cardId: card.id, rating: r, prevFSRS });
-    bump();
-  }, [card, previewCache, bump, history]);
+    advance();
+    setStats(s => ({ ...s, due: Math.max(0, s.due - 1), today: s.today + 1, totalReviews: s.totalReviews + 1 }));
+  }, [card, previewCache, history, advance]);
 
   const handleUndo = useCallback(async () => {
     const last = history.pop();
@@ -72,9 +85,15 @@ export const ReviewPage: React.FC = () => {
 
   const handleDelete = useCallback(async () => {
     if (!card) return;
-    await cardMutation.deleteCard(card.id);
-    bump();
-  }, [card, bump]);
+    cardMutation.deleteCard(card.id); // fire-and-forget
+    // Advance locally
+    setCard(null); setPreviewCache(null); setRevealed(false);
+    cardQuery.getDueCards(category || undefined, pausedCategories, deckId || undefined).then(cards => {
+      const next = cards[0] ?? null;
+      setCard(next); setPreviewCache(next ? preview(next) : null);
+      setStats(s => ({ ...s, due: Math.max(0, s.due - 1), total: s.total - 1 }));
+    });
+  }, [card, category, pausedCategories, deckId]);
 
   // Refs for keyboard
   const cardRef = useRef(card); cardRef.current = card;
