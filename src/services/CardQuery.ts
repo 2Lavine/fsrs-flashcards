@@ -1,5 +1,5 @@
 import { State } from 'ts-fsrs';
-import { getDB } from '../db';
+import { execute } from '../db';
 import type { Flashcard, Deck, ICardQuery } from './types';
 
 function rowToCard(r: Record<string, unknown>): Flashcard {
@@ -19,11 +19,11 @@ function rowToCard(r: Record<string, unknown>): Flashcard {
   };
 }
 
-const db = () => getDB();
+
 const one = async <T>(sql: string, args?: (string | number)[]) =>
-  db().execute({ sql, args: args ?? [] }).then(r => (r.rows[0] as T) ?? null);
+  execute(sql, args ?? []).then(r => (r.rows[0] as T) ?? null);
 const all = async <T>(sql: string, args?: (string | number)[]) =>
-  db().execute({ sql, args: args ?? [] }).then(r => r.rows as unknown as T[]);
+  execute(sql, args ?? []).then(r => r.rows as unknown as T[]);
 
 export class CardQuery implements ICardQuery {
   async getCategories() { return (await all<{ category: string }>("SELECT DISTINCT category FROM cards WHERE category != '' ORDER BY category")).map(r => r.category); }

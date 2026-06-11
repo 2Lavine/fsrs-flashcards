@@ -1,45 +1,39 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { readdirSync, readFileSync, unlinkSync, existsSync } from 'fs';
-import { join } from 'path';
 
-const AUTO_IMPORT_DIR = join(__dirname, 'public', 'auto-import');
-
-function autoImportPlugin() {
+function tursoDevProxy() {
+  let url: string, token: string;
   return {
-    name: 'auto-import',
-    configureServer(server) {
-      // Endpoint to list and fetch pending imports
-      server.middlewares.use('/api/auto-imports', (_req, res) => {
-        if (!existsSync(AUTO_IMPORT_DIR)) {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify([]));
-          return;
-        }
-        const files = readdirSync(AUTO_IMPORT_DIR).filter(f => f.endsWith('.json'));
-        const imports = [];
-        for (const file of files) {
+    name: 'turso-dev-proxy',
+    configResolved(config: Record<string, unknown>) {
+      url = (config as { env: Record<string, string> }).env.VITE_TURSO_URL || '';
+      token = (config as { env: Record<string, string> }).env.VITE_TURSO_AUTH_TOKEN || '';
+    },
+    configureServer(server: { middlewares: { use: (path: string, handler: (req: { method?: string; body?: unknown; on: (event: string, cb: (chunk: string) => void) => void }, res: { statusCode: number; setHeader: (k: string, v: string) => void; end: (body: string) => void }) => void) => void } }) {
+      server.middlewares.use('/api/turso', async (req, res) => {
+        if (req.method !== 'POST') { res.statusCode = 405; res.end('Method not allowed'); return; }
+        const chunks: string[] = [];
+        req.on('data', (chunk: string) => chunks.push(chunk));
+        req.on('end', async () => {
           try {
-            const content = readFileSync(join(AUTO_IMPORT_DIR, file), 'utf-8');
-            const data = JSON.parse(content);
-            imports.push(data);
-            // Remove after successful read
-            unlinkSync(join(AUTO_IMPORT_DIR, file));
-          } catch (e) {
-            console.error(`[auto-import] Failed to process ${file}:`, e);
+            const { sql, params } = JSON.parse(chunks.join(''));
+            const { createClient } = await import('@libsql/client');
+            const client = createClient({ url, authToken: token });
+            const result = await client.execute({ sql, args: params ?? [] });
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ rows: result.rows, columns: result.columns }));
+          } catch (err) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: (err as Error).message }));
           }
-        }
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(imports));
+        });
       });
     },
   };
 }
 
 export default defineConfig({
-  plugins: [react(), autoImportPlugin()],
-  build: {
-    target: 'es2022',
-    outDir: 'dist',
-  },
+  plugins: [react(), tursoDevProxy()],
+  build: { target: 'es2022', outDir: 'dist' },
 });

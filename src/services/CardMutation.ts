@@ -1,12 +1,11 @@
 import { createEmptyCard } from 'ts-fsrs';
 import type { Card } from 'ts-fsrs';
-import { getDB } from '../db';
+import { execute } from '../db';
 import type { CardInput, ICardMutation } from './types';
 
 function uid() { return crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
-const db = () => getDB();
-const ex = (sql: string, args: (string | number | null)[] = []) => db().execute({ sql, args: args as (string | number)[] });
+const ex = (sql: string, args: (string | number | null)[] = []) => execute(sql, args);
 const one = async <T>(sql: string, args?: (string | number)[]) => ex(sql, args).then(r => (r.rows[0] as T) ?? null);
 
 export class CardMutation implements ICardMutation {
