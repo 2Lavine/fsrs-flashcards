@@ -14,12 +14,16 @@ function rowToCard(r: Record<string, unknown>): Flashcard {
     tags: parseTags(r['tags']), category: (r['category'] as string) || '',
     createdAt: r['created_at'] as string,
     fsrs: {
-      due: new Date(r['fsrs_due'] as string), stability: r['fsrs_stability'] as number,
-      difficulty: r['fsrs_difficulty'] as number, elapsed_days: r['fsrs_elapsed_days'] as number,
-      scheduled_days: r['fsrs_scheduled_days'] as number, reps: r['fsrs_reps'] as number,
-      lapses: r['fsrs_lapses'] as number, state: r['fsrs_state'] as number,
+      due: new Date((r['fsrs_due'] as string) || Date.now()),
+      stability: (r['fsrs_stability'] as number) || 0,
+      difficulty: (r['fsrs_difficulty'] as number) || 0,
+      elapsed_days: (r['fsrs_elapsed_days'] as number) || 0,
+      scheduled_days: (r['fsrs_scheduled_days'] as number) || 0,
+      reps: (r['fsrs_reps'] as number) || 0,
+      lapses: (r['fsrs_lapses'] as number) || 0,
+      state: (r['fsrs_state'] as number) ?? 0,
       last_review: r['fsrs_last_review'] ? new Date(r['fsrs_last_review'] as string) : undefined,
-      learning_steps: r['fsrs_learning_steps'] as number,
+      learning_steps: (r['fsrs_learning_steps'] as number) || 0,
     },
   };
 }
