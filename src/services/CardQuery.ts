@@ -50,7 +50,23 @@ export class CardQuery implements ICardQuery {
     ]);
     return { total, due, new: nc, learning: lr, review: rv, totalReviews: tr, today: td, avgDifficulty: avg?.avg != null ? avg.avg.toFixed(2) : '-' };
   }
-  async getStreak() { let s = 0; const t = new Date(); for (let i = 0; i < 365; i++) { const d = new Date(t); d.setDate(d.getDate() - i); if (await one<{ c: number }>("SELECT COUNT(*) as c FROM review_logs WHERE review LIKE ?", [`${d.toISOString().slice(0, 10)}%`]).then(r => (r?.c ?? 0) > 0)) s++; else break; } return s; }
+  async getStreak() {
+    // Single query: find the most recent day without reviews using a recursive CTE
+    const r = await one<{ streak: number }>(`
+      WITH RECURSIVE dates(d) AS (
+        SELECT date('now') UNION ALL SELECT date(d, '-1 day') FROM dates LIMIT 365
+      ),
+      daily AS (SELECT substr(review, 1, 10) as day, COUNT(*) as c FROM review_logs GROUP BY day)
+      SELECT COUNT(*) as streak FROM dates
+      LEFT JOIN daily ON dates.d = daily.day
+      WHERE daily.c > 0
+      AND dates.d > COALESCE(
+        (SELECT dates.d FROM dates LEFT JOIN daily ON dates.d = daily.day WHERE daily.c IS NULL ORDER BY dates.d DESC LIMIT 1),
+        date('now', '-365 day')
+      )
+    `);
+    return r?.streak ?? 0;
+  }
   async getRecentLogs(l = 30) { return (await all<Record<string, unknown>>(`SELECT rl.*, c.question FROM review_logs rl LEFT JOIN cards c ON rl.card_id = c.id ORDER BY rl.review DESC LIMIT ?`, [l])).map(v => ({ id: v['id'] as number, cardId: v['card_id'] as string, rating: v['rating'] as number, state: v['state'] as number, due: new Date(v['due'] as string), stability: v['stability'] as number, difficulty: v['difficulty'] as number, elapsedDays: v['elapsed_days'] as number, scheduledDays: v['scheduled_days'] as number, review: new Date(v['review'] as string), question: (v['question'] as string) || '(deleted card)' })); }
   async getDailyCounts(d = 7) { const lb = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; const r: { label: string; count: number }[] = []; for (let i = d-1; i >= 0; i--) { const dt = new Date(); dt.setDate(dt.getDate()-i); r.push({ label: lb[dt.getDay()], count: await one<{ c: number }>("SELECT COUNT(*) as c FROM review_logs WHERE review LIKE ?", [`${dt.toISOString().slice(0,10)}%`]).then(r => r?.c ?? 0) }); } return r; }
   async getCategoryCounts() { return all<{ name: string; count: number }>("SELECT category as name, COUNT(*) as count FROM cards WHERE category != '' GROUP BY category ORDER BY count DESC"); }
