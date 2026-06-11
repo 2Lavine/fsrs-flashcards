@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Rating } from 'ts-fsrs';
 import type { Grade } from 'ts-fsrs';
 import { cardQuery, cardMutation, useStore } from '../store-instance';
-import type { Flashcard } from '../services/types';
+import type { Flashcard } from '@fsrs/shared';
 import { preview, review as doReview } from '../services/SchedulerService';
 import { formatDate, renderCloze, ratingLabel } from '../format';
 import { useReviewHotkeys } from '../hooks/useReviewHotkeys';
@@ -69,7 +69,7 @@ export const ReviewPage: React.FC = () => {
     const prevFSRS = { ...card.fsrs, due: new Date(card.fsrs.due), last_review: card.fsrs.last_review ? new Date(card.fsrs.last_review) : undefined };
     const result = doReview(card, r);
     card.fsrs = result.card;
-    cardMutation.recordReview(card.id, card.fsrs, r, result);
+    cardMutation.recordReview(card.id, card.fsrs, r, result.log);
     history.push({ cardId: card.id, rating: r, prevFSRS });
     advance();
     setStats(s => ({ ...s, due: Math.max(0, s.due - 1), today: s.today + 1, totalReviews: s.totalReviews + 1 }));

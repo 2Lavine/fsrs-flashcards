@@ -1,5 +1,5 @@
 import { fsrs, generatorParameters, type Grade, type RecordLogItem, type FSRSParameters } from 'ts-fsrs';
-import type { Flashcard } from './types';
+import type { Flashcard } from '@fsrs/shared';
 
 const params = generatorParameters({});
 const scheduler = fsrs(params);

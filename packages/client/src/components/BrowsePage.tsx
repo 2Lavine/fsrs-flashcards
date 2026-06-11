@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { cardQuery, useStore } from '../store-instance';
-import type { Flashcard, Deck } from '../services/types';
+import type { Flashcard, Deck } from '@fsrs/shared';
 import { renderCloze, formatDate, stateLabel, stateClass } from '../format';
 
 export const BrowsePage: React.FC = () => {

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { CardQuery } from './services/CardQuery';
 import { CardMutation } from './services/CardMutation';
-import type { Flashcard, Deck, CardInput } from './services/types';
+import type { Flashcard, Deck, CardInput } from '@fsrs/shared';
 
 export const cardQuery = new CardQuery();
 export const cardMutation = new CardMutation();

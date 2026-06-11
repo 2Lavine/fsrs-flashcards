@@ -12,7 +12,7 @@ export const StatsPage: React.FC = () => {
   const [ratings, setRatings] = useState<{ label: string; count: number }[]>([]);
   const [recent, setRecent] = useState<{ id: number; rating: number; due: Date; review: Date; question: string }[]>([]);
 
-  useEffect(() => { cardQuery.getStats().then(setStats); cardQuery.getStreak().then(setStreak); cardQuery.getDailyCounts(7).then(setDaily); cardQuery.getCategoryCounts().then(setCategories); cardQuery.getRatingCounts().then(setRatings); cardQuery.getRecentLogs(20).then(setRecent); }, [useStore(s => s.version)]);
+  useEffect(() => { cardQuery.getStats().then(setStats); cardQuery.getStreak().then(setStreak); cardQuery.getDailyCounts().then(setDaily); cardQuery.getCategoryCounts().then(setCategories); cardQuery.getRatingCounts().then(setRatings); cardQuery.getRecentLogs().then(setRecent); }, [useStore(s => s.version)]);
 
   const maxDaily = Math.max(1, ...daily.map(d => d.count));
   const totalCat = categories.reduce((s, d) => s + d.count, 0);

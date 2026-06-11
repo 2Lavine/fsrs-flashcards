@@ -1,10 +1,10 @@
 import { createRoot } from 'react-dom/client';
-import { initDB } from './db';
+import {} from './db';
 import { App } from './App';
 import './style.css';
 
 async function boot() {
-  initDB();
+  
   const root = createRoot(document.getElementById('root')!);
   root.render(<App />);
 }
