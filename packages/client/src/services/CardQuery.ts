@@ -1,11 +1,17 @@
 import { api } from '../db';
 import type { Flashcard, Deck, ICardQuery, ReviewEntry } from '@fsrs/shared';
 
+function parseTags(v: unknown): string[] {
+  if (!v) return [];
+  if (Array.isArray(v)) return v as string[];
+  try { return JSON.parse(v as string); } catch { return [(v as string)]; }
+}
+
 function rowToCard(r: Record<string, unknown>): Flashcard {
   return {
     id: r['id'] as string, deckId: r['deck_id'] as string, deck: (r['deck_name'] || '') as string,
     question: r['question'] as string, answer: r['answer'] as string,
-    tags: JSON.parse((r['tags'] as string) || '[]'), category: (r['category'] as string) || '',
+    tags: parseTags(r['tags']), category: (r['category'] as string) || '',
     createdAt: r['created_at'] as string,
     fsrs: {
       due: new Date(r['fsrs_due'] as string), stability: r['fsrs_stability'] as number,
