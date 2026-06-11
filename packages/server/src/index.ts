@@ -77,14 +77,18 @@ app.get('/api/due-cards', async (c) => {
 
 app.get('/api/stats', async (c) => {
   const now = new Date().toISOString();
-  const [total, due, nc, lr, review] = await Promise.all([
+  const n10 = now.slice(0, 10);
+  const [total, due, nc, lr, review, tr, td, avg] = await Promise.all([
     one('SELECT COUNT(*) as c FROM cards').then(r => (r?.c as number) ?? 0),
     one(`SELECT COUNT(*) as c FROM cards WHERE fsrs_state = ${State.New} OR fsrs_due <= ?`, [now]).then(r => (r?.c as number) ?? 0),
     one(`SELECT COUNT(*) as c FROM cards WHERE fsrs_state = ${State.New}`).then(r => (r?.c as number) ?? 0),
     one(`SELECT COUNT(*) as c FROM cards WHERE fsrs_state IN (${State.Learning}, ${State.Relearning})`).then(r => (r?.c as number) ?? 0),
     one(`SELECT COUNT(*) as c FROM cards WHERE fsrs_state = ${State.Review}`).then(r => (r?.c as number) ?? 0),
+    one('SELECT COUNT(*) as c FROM review_logs').then(r => (r?.c as number) ?? 0),
+    one("SELECT COUNT(*) as c FROM review_logs WHERE review LIKE ?", [`${n10}%`]).then(r => (r?.c as number) ?? 0),
+    one('SELECT AVG(fsrs_difficulty) as avg FROM cards WHERE fsrs_state != 0'),
   ]);
-  return c.json({ total, due, new: nc, learning: lr, review });
+  return c.json({ total, due, new: nc, learning: lr, review, totalReviews: tr, today: td, avgDifficulty: avg?.avg != null ? (avg.avg as number).toFixed(2) : '-' });
 });
 
 // ─── POST /api/review ─────────────────────
