@@ -14,7 +14,7 @@ const now = () => new Date().toISOString();
 
 type Handler = (req: VercelRequest, res: VercelResponse) => Promise<void>;
 
-const routes: Record<string, Record<string, Handler>> = {
+const routes: Record<string, Handler> = {
   // Health
   'GET /api/health': async (_req, res) => { res.json({ ok: true }); },
 
