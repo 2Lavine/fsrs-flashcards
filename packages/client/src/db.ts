@@ -22,6 +22,16 @@ async function del<T>(path: string): Promise<T> {
   return res.json();
 }
 
+async function put<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(`PUT ${path}: ${res.status}`);
+  return res.json();
+}
+
 export const api = {
   health: () => get<{ ok: boolean }>('/health'),
   dueCards: (params?: { category?: string; deckId?: string; paused?: string[] }) => {
@@ -54,4 +64,6 @@ export const api = {
   importCards: (body: { deck: string; source?: string; cards: { question: string; answer: string; tags?: string[]; category?: string }[] }) => post<{ ok: boolean; deck: string; imported: number }>('/import', body),
   recentLogs: () => get<{ logs: Record<string, unknown>[] }>('/recent-logs'),
   ratingCounts: () => get<{ ratings: { label: string; count: number }[] }>('/rating-counts'),
+  updateCard: (id: string, data: { question: string; answer: string }) => put<{ ok: boolean }>(`/cards/${id}`, data),
+  fetchModels: (params: { baseURL: string; apiKey: string; apiFormat: string }) => post<{ data: { id: string }[] }>('/llm/fetch-models', params),
 };

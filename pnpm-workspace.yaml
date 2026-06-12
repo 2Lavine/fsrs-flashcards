@@ -1,4 +1,6 @@
 packages:
   - 'packages/*'
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: false
+overrides:
+  zod: ^4.0.0

@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@libsql/client';
 import { State, createEmptyCard } from 'ts-fsrs';
+import { createLLMProvider } from '@sour/llm-config';
+import { generateText } from 'ai';
 
 const client = createClient({
   url: process.env.TURSO_URL!,
@@ -134,6 +136,15 @@ const routes: Record<string, Handler> = {
     res.json({ ok: true });
   },
 
+  // Update card
+  'PUT /api/cards/:id': async (req, res) => {
+    const id = req.query.id as string;
+    const { question, answer } = req.body || {};
+    if (!question || !answer) return res.status(400).json({ error: 'Missing question or answer' });
+    await client.execute('UPDATE cards SET question = ?, answer = ? WHERE id = ?', [question, answer, id]);
+    res.json({ ok: true });
+  },
+
   // Delete card
   'DELETE /api/cards/:id': async (req, res) => {
     const id = req.query.id as string;
@@ -206,6 +217,38 @@ const routes: Record<string, Handler> = {
       result.push({ label: labels[i], count: (r.rows[0]?.c as number) ?? 0 });
     }
     res.json({ ratings: result });
+  },
+  // LLM proxy
+  'POST /api/llm/fetch-models': async (req, res) => {
+    const { baseURL, apiKey, apiFormat } = req.body || {};
+    const url = baseURL.replace(/\/+$/, '') + '/models';
+    const headers: Record<string, string> = {};
+    if (apiFormat === 'anthropic') {
+      headers['x-api-key'] = apiKey;
+      headers['anthropic-version'] = '2023-06-01';
+    } else {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+    const r = await fetch(url, { headers });
+    if (!r.ok) return res.status(502).json({ error: `Upstream ${r.status}` });
+    const data = await r.json();
+    res.json(data);
+  },
+  'POST /api/llm/generate': async (req, res) => {
+    const { baseURL, apiKey, model, apiFormat, system, prompt } = req.body || {};
+    if (!baseURL || !apiKey || !model || !prompt) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    try {
+      const provider = createLLMProvider({
+        baseURL, apiKey, model,
+        apiFormat: apiFormat || 'openai',
+      });
+      const result = await generateText({ model: provider(model), system, prompt });
+      res.json({ text: result.text });
+    } catch (e) {
+      res.status(502).json({ error: e instanceof Error ? e.message : 'Generation failed' });
+    }
   },
 };
 

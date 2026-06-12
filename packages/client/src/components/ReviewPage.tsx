@@ -7,6 +7,8 @@ import { preview, review as doReview } from '../services/SchedulerService';
 import { formatDate, renderCloze, ratingLabel } from '../format';
 import { useReviewHotkeys } from '../hooks/useReviewHotkeys';
 import { useHistory } from '../hooks/useHistory';
+import { generateCardRewrite, cardPresets } from '../services/llm-generate';
+import { llmStorage } from '../services/llm-storage';
 
 export const ReviewPage: React.FC = () => {
   const [category, setCategory] = useState('');
@@ -17,6 +19,9 @@ export const ReviewPage: React.FC = () => {
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const [showAllCats, setShowAllCats] = useState(false);
   const [dueCards, setDueCards] = useState<Flashcard[]>([]);
+  const [aiStatus, setAiStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [aiResult, setAiResult] = useState('');
+  const [aiError, setAiError] = useState('');
 
   // Async data
   const [stats, setStats] = useState<ReturnType<typeof cardQuery.getStats> extends Promise<infer T> ? T : never>({ total: 0, due: 0, new: 0, learning: 0, review: 0, totalReviews: 0, today: 0, avgDifficulty: '-' });
@@ -95,6 +100,38 @@ export const ReviewPage: React.FC = () => {
     });
   }, [card, category, pausedCategories, deckId]);
 
+  const handleAi = async (presetIdx: number) => {
+    if (!card) return;
+    const configs = await llmStorage.getAll();
+    const config = configs[0];
+    if (!config?.baseURL) { setAiError('Please configure LLM in Settings'); setAiStatus('error'); return; }
+    setAiStatus('loading');
+    setAiError('');
+    setAiResult('');
+    try {
+      const text = await generateCardRewrite(config, cardPresets[presetIdx], { question: card.question, answer: card.answer });
+      setAiResult(text);
+      setAiStatus('done');
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : 'AI failed');
+      setAiStatus('error');
+    }
+  };
+
+  const handleAiReplace = async () => {
+    if (!card) return;
+    await useStore.getState().importCards(card.deck, '', [{ question: card.question, answer: card.answer + '\n\n' + aiResult, tags: card.tags, category: card.category }]);
+    setAiStatus('idle');
+    setAiResult('');
+  };
+
+  const handleAiNewCard = async () => {
+    if (!card) return;
+    await useStore.getState().importCards(card.deck, '', [{ question: card.question, answer: card.answer + '\n\n' + aiResult, tags: card.tags, category: card.category }]);
+    setAiStatus('idle');
+    setAiResult('');
+  };
+
   // Refs for keyboard
   const cardRef = useRef(card); cardRef.current = card;
   const revealedRef = useRef(revealed); revealedRef.current = revealed;
@@ -151,6 +188,11 @@ export const ReviewPage: React.FC = () => {
       <div className="card-stage">
         <div className="review-actions">
           {history.length > 0 && <button className="btn small" onClick={handleUndo} title="Undo (A or Ctrl+Z)">Undo</button>}
+          {cardPresets.map((p, i) => (
+            <button key={p.key} className="btn small" onClick={() => handleAi(i)} disabled={aiStatus === 'loading'}>
+              {p.label}
+            </button>
+          ))}
           <button className="btn small danger" onClick={handleDelete} title="Delete (D)">Delete</button>
         </div>
 
@@ -186,6 +228,24 @@ export const ReviewPage: React.FC = () => {
                   </button>
                 ))}
               </div>
+            )}
+
+            {aiStatus === 'loading' && (
+              <div className="ai-inline">
+                <div className="loading"><div className="spinner" /><span>AI thinking...</span></div>
+              </div>
+            )}
+            {aiStatus === 'done' && (
+              <div className="ai-inline">
+                <div className="ai-rewrite-content">{aiResult}</div>
+                <div className="ai-actions">
+                  <button className="btn small" onClick={handleAiReplace}>Replace</button>
+                  <button className="btn small primary" onClick={handleAiNewCard}>New Card</button>
+                </div>
+              </div>
+            )}
+            {aiStatus === 'error' && (
+              <div className="ai-inline"><span className="llm-status error">{aiError}</span></div>
             )}
           </>
         )}

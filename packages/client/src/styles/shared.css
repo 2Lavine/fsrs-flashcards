@@ -353,3 +353,164 @@ main {
   border-radius: 2px;
   transition: width 0.3s ease;
 }
+
+/* ─── LLM Settings ─────────────────────── */
+.llm-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.llm-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.llm-tabs button.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.llm-tab-remove {
+  margin-left: 4px;
+  opacity: 0.4;
+  font-size: 0.8rem;
+}
+
+.llm-tab-remove:hover { opacity: 1; }
+
+.llm-settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.llm-settings label span {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text2);
+}
+
+.llm-settings input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  outline: none;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.llm-settings input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.llm-settings input::placeholder { color: var(--text3); }
+
+.llm-settings .select-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238c7d6b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.llm-settings .select-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.llm-settings .model-row {
+  display: flex;
+  gap: 8px;
+}
+
+.llm-settings .model-row select,
+.llm-settings .model-row input {
+  flex: 1;
+}
+
+.llm-settings .key-row {
+  display: flex;
+  gap: 8px;
+}
+
+.llm-settings .key-row input {
+  flex: 1;
+}
+
+.llm-status {
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.llm-status.success { color: var(--good); }
+
+.llm-status.error { color: var(--again); }
+
+/* ─── AI Rewrite ───────────────────────── */
+.ai-rewrite-presets {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ai-rewrite-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-rewrite-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.ai-rewrite-content {
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: var(--text);
+  white-space: pre-wrap;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.ai-inline {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-inline .ai-rewrite-content {
+  max-height: 200px;
+}
+
+.ai-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.llm-status.error { color: var(--again); }

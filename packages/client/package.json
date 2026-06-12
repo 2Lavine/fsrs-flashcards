@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@fsrs/shared": "workspace:*",
+    "@sour/llm-config": "workspace:*",
     "@libsql/client": "^0.17.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

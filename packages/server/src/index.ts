@@ -4,9 +4,13 @@ import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import { State, createEmptyCard } from 'ts-fsrs';
 import db from './db';
+import { llmProxyRoutes } from '@sour/llm-config/server';
 
 const app = new Hono();
 app.use('*', cors());
+
+// LLM proxy routes (fetch models, generate)
+llmProxyRoutes(app);
 
 // ─── Types ────────────────────────────────
 
@@ -126,6 +130,37 @@ app.post('/api/undo', async (c) => {
   });
   await db.execute({ sql: 'DELETE FROM review_logs WHERE id = (SELECT id FROM review_logs WHERE card_id = ? ORDER BY review DESC LIMIT 1)', args: [cardId] });
   return c.json({ ok: true });
+});
+
+// ─── PUT /api/cards/:id ────────────────────
+
+app.put('/api/cards/:id', async (c) => {
+  const id = c.req.param('id');
+  const { question, answer } = await c.req.json<{ question: string; answer: string }>();
+  if (!question || !answer) return c.json({ error: 'Missing question or answer' }, 400);
+  await db.execute('UPDATE cards SET question = ?, answer = ? WHERE id = ?', [question, answer, id]);
+  return c.json({ ok: true });
+});
+
+// ─── GET /api/cards ─────────────────────────
+
+app.get('/api/cards', async (c) => {
+  const search = c.req.query('search');
+  const deckId = c.req.query('deckId');
+  const conds: string[] = [];
+  const args: string[] = [];
+  if (search) {
+    conds.push('(c.question LIKE ? OR c.answer LIKE ? OR c.tags LIKE ? OR d.name LIKE ?)');
+    const q = `%${search}%`;
+    args.push(q, q, q, q);
+  }
+  if (deckId) { conds.push('c.deck_id = ?'); args.push(deckId); }
+  const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+  const rows = await all(
+    `SELECT c.*, d.name as deck_name FROM cards c JOIN decks d ON c.deck_id = d.id ${where} ORDER BY c.fsrs_due ASC`,
+    args
+  );
+  return c.json({ cards: rows });
 });
 
 // ─── DELETE /api/cards/:id ────────────────
