@@ -42,7 +42,7 @@ const TaskCard: React.FC<{ task: AiTask }> = ({ task }) => {
 
   return (
     <Card className={`border-l-2 ${cfg.borderClass}`}>
-      <CardHeader className="flex-row items-center gap-3 pb-2">
+      <CardHeader className="!flex !flex-row items-center gap-3 pb-2">
         {cfg.icon}
         <Badge variant="outline" className="shrink-0 text-xs">
           {task.presetLabel}
@@ -191,18 +191,16 @@ export const AiCardsPage: React.FC = () => {
             className="resize-none"
           />
           <div className="flex flex-wrap gap-2 items-center">
-            <div className="flex flex-wrap gap-1.5">
-              {cardPresets.map((p, i) => (
-                <Badge
-                  key={p.key}
-                  variant={presetIdx === i ? 'default' : 'outline'}
-                  className="cursor-pointer select-none"
-                  onClick={() => setPresetIdx(i)}
-                >
-                  {p.label}
-                </Badge>
-              ))}
-            </div>
+            {cardPresets.map((p, i) => (
+              <Badge
+                key={p.key}
+                variant={presetIdx === i ? 'default' : 'outline'}
+                className="cursor-pointer select-none"
+                onClick={() => setPresetIdx(i)}
+              >
+                {p.label}
+              </Badge>
+            ))}
 
             {decks.length > 0 && (
               <Select value={deckId} onValueChange={v => setDeckId(v === '_none' || v === null ? '' : v)}>
