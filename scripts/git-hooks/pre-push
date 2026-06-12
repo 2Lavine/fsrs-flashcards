@@ -6,13 +6,5 @@ if [ "$current_branch" = "main" ]; then
   echo ""
   echo "→ Pushing to main. Deploying to Vercel..."
   echo ""
-  if pnpm deploy; then
-    echo ""
-    echo "✓ Deployed successfully"
-    echo ""
-  else
-    echo ""
-    echo "✗ Deploy failed. Push aborted."
-    exit 1
-  fi
+  pnpm deploy &
 fi
