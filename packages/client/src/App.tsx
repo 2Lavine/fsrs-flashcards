@@ -3,10 +3,12 @@ import { ReviewPage } from './components/ReviewPage';
 import { BrowsePage } from './components/BrowsePage';
 import { StatsPage } from './components/StatsPage';
 import { SettingsPage } from './components/SettingsPage';
+import { AiCardsPage } from './components/AiCardsPage';
+import { TaskPanel } from './components/TaskPanel';
 import { ImportModal } from './components/ImportModal';
 import { useToast } from './hooks/useToast';
 
-type Page = 'review' | 'browse' | 'stats' | 'settings';
+type Page = 'review' | 'browse' | 'aicards' | 'stats' | 'settings';
 
 export const App: React.FC = () => {
   const [page, setPage] = React.useState<Page>('review');
@@ -17,9 +19,9 @@ export const App: React.FC = () => {
       <header>
         <h1>FSRS Flashcards</h1>
         <nav>
-          {(['review', 'browse', 'stats', 'settings'] as Page[]).map(p => (
+          {(['review', 'browse', 'aicards', 'stats', 'settings'] as Page[]).map(p => (
             <button key={p} className={page === p ? 'active' : ''} onClick={() => setPage(p)}>
-              {p === 'review' ? 'Review' : p === 'browse' ? 'Cards' : p === 'stats' ? 'Stats' : 'Settings'}
+              {p === 'review' ? 'Review' : p === 'browse' ? 'Cards' : p === 'aicards' ? 'AI Cards' : p === 'stats' ? 'Stats' : 'Settings'}
             </button>
           ))}
         </nav>
@@ -32,6 +34,9 @@ export const App: React.FC = () => {
         <div className={`page ${page === 'browse' ? 'active' : ''}`} id="page-browse">
           {page === 'browse' && <BrowsePage />}
         </div>
+        <div className={`page ${page === 'aicards' ? 'active' : ''}`} id="page-aicards">
+          {page === 'aicards' && <AiCardsPage />}
+        </div>
         <div className={`page ${page === 'stats' ? 'active' : ''}`} id="page-stats">
           {page === 'stats' && <StatsPage />}
         </div>
@@ -41,6 +46,7 @@ export const App: React.FC = () => {
       </main>
 
       <ImportModal onToast={toast} />
+      <TaskPanel />
 
       <div className="toast" id="toast" style={{ opacity: toasts.length > 0 ? 1 : 0 }}>
         {toasts[toasts.length - 1]?.msg ?? ''}

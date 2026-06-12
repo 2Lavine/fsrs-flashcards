@@ -1,4 +1,21 @@
+import { z } from 'zod';
 import type { LLMConfig } from '@sour/llm-config';
+
+const GeneratedCardSchema = z.object({
+  question: z.string().min(1),
+  answer: z.string().min(1),
+  category: z.string().optional(),
+});
+
+const GeneratedCardsSchema = z.object({
+  cards: z.array(GeneratedCardSchema).min(1),
+});
+
+export interface GeneratedCard {
+  question: string;
+  answer: string;
+  category?: string;
+}
 
 export interface CardPreset {
   key: string;
@@ -7,29 +24,39 @@ export interface CardPreset {
   prompt: string;
 }
 
-export const cardPresets: CardPreset[] = [
-  {
-    key: '脉络',
-    label: '深入解释脉络',
-    system: '你是一个深度学习的助手，擅长帮学习者理清知识脉络和内在逻辑。回答简洁但有深度，不要超过200字。',
-    prompt: '基于以下卡片的内容，深入解释这个话题的脉络和逻辑关系：\n\n问题：{question}\n答案：{answer}',
-  },
-  {
-    key: '名词',
-    label: '解释名词',
-    system: '你是一个知识渊博的术语解释助手。对每个关键名词给出清晰简洁的定义。',
-    prompt: '解释以下卡片中涉及的关键名词和概念：\n\n问题：{question}\n答案：{answer}\n\n列出每个重要的名词/概念，给出简短定义。',
-  },
-];
+function parseGeneratedCards(text: string): GeneratedCard[] {
+  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) || text.match(/(\{[\s\S]*\})/);
+  if (!jsonMatch) throw new Error('No JSON found in AI response');
 
-export async function generateCardRewrite(
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonMatch[1]);
+  } catch {
+    throw new Error('Invalid JSON from AI');
+  }
+
+  const result = GeneratedCardsSchema.safeParse(parsed);
+  if (!result.success) {
+    const issues = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
+    throw new Error(`AI output validation failed: ${issues}`);
+  }
+
+  return result.data.cards;
+}
+
+export async function generateCards(
   config: LLMConfig,
   preset: CardPreset,
   card: { question: string; answer: string },
-): Promise<string> {
+  existingCategories: string[] = [],
+): Promise<GeneratedCard[]> {
+  const catsHint = existingCategories.length > 0
+    ? `\n现有分类列表（优先使用已有分类）：${existingCategories.join('、')}`
+    : '';
   const prompt = preset.prompt
     .replaceAll('{question}', card.question)
-    .replaceAll('{answer}', card.answer);
+    .replaceAll('{answer}', card.answer)
+    .replaceAll('{categories}', catsHint);
 
   const res = await fetch('/api/llm/generate', {
     method: 'POST',
@@ -50,5 +77,5 @@ export async function generateCardRewrite(
   }
 
   const data = await res.json();
-  return data.text;
+  return parseGeneratedCards(data.text);
 }

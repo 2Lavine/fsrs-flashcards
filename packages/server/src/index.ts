@@ -209,14 +209,35 @@ app.post('/api/paused/:cat', async (c) => {
   return c.json({ ok: true });
 });
 
+// ─── DELETE /api/decks/:name ──────────────
+
+app.delete('/api/decks/:name', async (c) => {
+  const name = c.req.param('name');
+  const r = await db.execute('SELECT id FROM decks WHERE name = ?', [name]);
+  if (r.rows.length === 0) return c.json({ ok: true, deleted: 0 });
+  const deckId = r.rows[0].id as string;
+  await db.execute('DELETE FROM review_logs WHERE card_id IN (SELECT id FROM cards WHERE deck_id = ?)', [deckId]);
+  await db.execute('DELETE FROM cards WHERE deck_id = ?', [deckId]);
+  await db.execute('DELETE FROM decks WHERE id = ?', [deckId]);
+  return c.json({ ok: true, deleted: 1 });
+});
+
 // ─── POST /api/import ─────────────────────
 
 app.post('/api/import', async (c) => {
   const { deck, source, cards } = await c.req.json<{ deck: string; source?: string; cards: { question: string; answer: string; tags?: string[]; category?: string }[] }>();
   if (!deck || !cards?.length) return c.json({ error: 'Need deck + cards' }, 400);
 
-  const deckId = uid(); const now = new Date().toISOString();
-  await db.execute('INSERT OR IGNORE INTO decks (id, name, source, created_at) VALUES (?,?,?,?)', [deckId, deck, source || '', now]);
+  const now = new Date().toISOString();
+  // Look up existing deck, or create new one
+  let deckRow = await one('SELECT id FROM decks WHERE name = ?', [deck]);
+  let deckId: string;
+  if (deckRow) {
+    deckId = deckRow.id as string;
+  } else {
+    deckId = uid();
+    await db.execute('INSERT INTO decks (id, name, source, created_at) VALUES (?,?,?,?)', [deckId, deck, source || '', now]);
+  }
 
   let n = 0;
   for (const c of cards) {

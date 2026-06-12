@@ -7,8 +7,9 @@ import { preview, review as doReview } from '../services/SchedulerService';
 import { formatDate, renderCloze, ratingLabel } from '../format';
 import { useReviewHotkeys } from '../hooks/useReviewHotkeys';
 import { useHistory } from '../hooks/useHistory';
-import { generateCardRewrite, cardPresets } from '../services/llm-generate';
+import { cardPresets } from '../services/preset-loader';
 import { llmStorage } from '../services/llm-storage';
+import { useTaskQueue } from '../services/task-queue';
 
 export const ReviewPage: React.FC = () => {
   const [category, setCategory] = useState('');
@@ -19,9 +20,9 @@ export const ReviewPage: React.FC = () => {
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const [showAllCats, setShowAllCats] = useState(false);
   const [dueCards, setDueCards] = useState<Flashcard[]>([]);
-  const [aiStatus, setAiStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
-  const [aiResult, setAiResult] = useState('');
-  const [aiError, setAiError] = useState('');
+  const enqueue = useTaskQueue(s => s.enqueue);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState('');
 
   // Async data
   const [stats, setStats] = useState<ReturnType<typeof cardQuery.getStats> extends Promise<infer T> ? T : never>({ total: 0, due: 0, new: 0, learning: 0, review: 0, totalReviews: 0, today: 0, avgDifficulty: '-' });
@@ -104,32 +105,32 @@ export const ReviewPage: React.FC = () => {
     if (!card) return;
     const configs = await llmStorage.getAll();
     const config = configs[0];
-    if (!config?.baseURL) { setAiError('Please configure LLM in Settings'); setAiStatus('error'); return; }
-    setAiStatus('loading');
-    setAiError('');
-    setAiResult('');
-    try {
-      const text = await generateCardRewrite(config, cardPresets[presetIdx], { question: card.question, answer: card.answer });
-      setAiResult(text);
-      setAiStatus('done');
-    } catch (e) {
-      setAiError(e instanceof Error ? e.message : 'AI failed');
-      setAiStatus('error');
-    }
+    if (!config?.baseURL) return;
+    const cats = await cardQuery.getCategoriesByDeck(card.deckId || undefined);
+    enqueue(config, presetIdx, {
+      question: card.question,
+      answer: card.answer,
+      deck: card.deck,
+      category: card.category,
+      tags: card.tags,
+    }, { categories: cats });
   };
 
-  const handleAiReplace = async () => {
-    if (!card) return;
-    await useStore.getState().importCards(card.deck, '', [{ question: card.question, answer: card.answer + '\n\n' + aiResult, tags: card.tags, category: card.category }]);
-    setAiStatus('idle');
-    setAiResult('');
-  };
-
-  const handleAiNewCard = async () => {
-    if (!card) return;
-    await useStore.getState().importCards(card.deck, '', [{ question: card.question, answer: card.answer + '\n\n' + aiResult, tags: card.tags, category: card.category }]);
-    setAiStatus('idle');
-    setAiResult('');
+  const handleCustomAi = async () => {
+    if (!card || !customPrompt.trim()) return;
+    const configs = await llmStorage.getAll();
+    const config = configs[0];
+    if (!config?.baseURL) return;
+    const cats = await cardQuery.getCategoriesByDeck(card.deckId || undefined);
+    enqueue(config, -1, {
+      question: card.question,
+      answer: card.answer,
+      deck: card.deck,
+      category: card.category,
+      tags: card.tags,
+    }, { customPrompt: customPrompt.trim(), categories: cats });
+    setCustomOpen(false);
+    setCustomPrompt('');
   };
 
   // Refs for keyboard
@@ -189,12 +190,28 @@ export const ReviewPage: React.FC = () => {
         <div className="review-actions">
           {history.length > 0 && <button className="btn small" onClick={handleUndo} title="Undo (A or Ctrl+Z)">Undo</button>}
           {cardPresets.map((p, i) => (
-            <button key={p.key} className="btn small" onClick={() => handleAi(i)} disabled={aiStatus === 'loading'}>
+            <button key={p.key} className="btn small" onClick={() => handleAi(i)}>
               {p.label}
             </button>
           ))}
+          <button className="btn small" onClick={() => setCustomOpen(!customOpen)}>Custom</button>
           <button className="btn small danger" onClick={handleDelete} title="Delete (D)">Delete</button>
         </div>
+
+        {customOpen && card && (
+          <div className="custom-prompt">
+            <textarea
+              placeholder={`Describe how to rewrite this card...\nUse {question} and {answer} as placeholders.\nOutput JSON: {"cards":[{"question":"...","answer":"...","category":"..."}]}`}
+              value={customPrompt}
+              onChange={e => setCustomPrompt(e.target.value)}
+              rows={4}
+            />
+            <div className="custom-prompt-actions">
+              <button className="btn small primary" onClick={handleCustomAi} disabled={!customPrompt.trim()}>Generate</button>
+              <button className="btn small" onClick={() => { setCustomOpen(false); setCustomPrompt(''); }}>Cancel</button>
+            </div>
+          </div>
+        )}
 
         {!card ? (
           stats.total === 0 ? (
@@ -228,24 +245,6 @@ export const ReviewPage: React.FC = () => {
                   </button>
                 ))}
               </div>
-            )}
-
-            {aiStatus === 'loading' && (
-              <div className="ai-inline">
-                <div className="loading"><div className="spinner" /><span>AI thinking...</span></div>
-              </div>
-            )}
-            {aiStatus === 'done' && (
-              <div className="ai-inline">
-                <div className="ai-rewrite-content">{aiResult}</div>
-                <div className="ai-actions">
-                  <button className="btn small" onClick={handleAiReplace}>Replace</button>
-                  <button className="btn small primary" onClick={handleAiNewCard}>New Card</button>
-                </div>
-              </div>
-            )}
-            {aiStatus === 'error' && (
-              <div className="ai-inline"><span className="llm-status error">{aiError}</span></div>
             )}
           </>
         )}

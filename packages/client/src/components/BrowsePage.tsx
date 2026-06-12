@@ -2,14 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { cardQuery, useStore } from '../store-instance';
 import type { Flashcard, Deck } from '@fsrs/shared';
 import { renderCloze, formatDate, stateLabel, stateClass } from '../format';
-import { AIRewriteModal } from './AIRewriteModal';
 
 export const BrowsePage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [deckFilter, setDeckFilter] = useState('');
   const [decks, setDecks] = useState<Deck[]>([]);
   const [cards, setCards] = useState<Flashcard[]>([]);
-  const [aiCard, setAiCard] = useState<Flashcard | null>(null);
 
   const version = useStore(s => s.version);
 
@@ -101,19 +99,12 @@ export const BrowsePage: React.FC = () => {
                 </div>
               </div>
               <div className="actions">
-                <button className="btn small" onClick={() => setAiCard(c)} title="AI Rewrite">AI</button>
                 <button className="btn small danger" onClick={() => doDelete(c.id)}>Delete</button>
               </div>
             </div>
           ))}
         </div>
       )}
-
-      <AIRewriteModal
-        card={aiCard}
-        visible={aiCard !== null}
-        onClose={() => setAiCard(null)}
-      />
     </>
   );
 };

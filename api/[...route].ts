@@ -169,8 +169,15 @@ const routes: Record<string, Handler> = {
   'POST /api/import': async (req, res) => {
     const { deck, source, cards } = req.body || {};
     if (!deck || !cards?.length) return res.status(400).json({ error: 'Need deck + cards' });
-    const deckId = uid(); const n = now();
-    await client.execute('INSERT OR IGNORE INTO decks (id, name, source, created_at) VALUES (?,?,?,?)', [deckId, deck, source || '', n]);
+    const n = now();
+    const existing = await client.execute('SELECT id FROM decks WHERE name = ?', [deck]);
+    let deckId: string;
+    if (existing.rows[0]) {
+      deckId = existing.rows[0].id as string;
+    } else {
+      deckId = uid();
+      await client.execute('INSERT INTO decks (id, name, source, created_at) VALUES (?,?,?,?)', [deckId, deck, source || '', n]);
+    }
     let count = 0;
     for (const c of cards) {
       const fsrs = createEmptyCard();
