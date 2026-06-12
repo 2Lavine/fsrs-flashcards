@@ -10,10 +10,12 @@ import { useHistory } from '../hooks/useHistory';
 import { cardPresets } from '../services/preset-loader';
 import { llmStorage } from '../services/llm-storage';
 import { useTaskQueue } from '../services/task-queue';
+import { toast } from '../hooks/useToast';
 import { openImportModal } from './ImportModal';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Textarea } from './ui/textarea';
+import { Skeleton } from './ui/skeleton';
 
 const ratingStyles: Record<number, string> = {
   [Rating.Again]: 'border-red-500/30 hover:border-red-500 hover:bg-red-500/10 hover:text-red-400',
@@ -40,15 +42,18 @@ export const ReviewPage: React.FC = () => {
   const [decks, setDecks] = useState<{ id: string; name: string }[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [pausedCategories, setPausedCategories] = useState<string[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   const history = useHistory();
   const version = useStore(s => s.version);
   const bump = useStore(s => s.bump);
 
   useEffect(() => {
-    cardQuery.getStats().then(setStats);
-    cardQuery.getDecks().then(setDecks);
-    cardQuery.getPausedCategories().then(setPausedCategories);
+    Promise.all([
+      cardQuery.getStats().then(setStats),
+      cardQuery.getDecks().then(setDecks),
+      cardQuery.getPausedCategories().then(setPausedCategories),
+    ]).then(() => setLoaded(true));
   }, [version]);
 
   useEffect(() => {
@@ -112,7 +117,7 @@ export const ReviewPage: React.FC = () => {
     if (!card) return;
     const configs = await llmStorage.getAll();
     const config = configs[0];
-    if (!config?.baseURL) return;
+    if (!config?.baseURL) { toast('Please configure LLM settings first'); return; }
     const cats = await cardQuery.getCategoriesByDeck(card.deckId || undefined);
     enqueue(config, presetIdx, {
       question: card.question,
@@ -127,7 +132,7 @@ export const ReviewPage: React.FC = () => {
     if (!card || !customPrompt.trim()) return;
     const configs = await llmStorage.getAll();
     const config = configs[0];
-    if (!config?.baseURL) return;
+    if (!config?.baseURL) { toast('Please configure LLM settings first'); return; }
     const cats = await cardQuery.getCategoriesByDeck(card.deckId || undefined);
     enqueue(config, -1, {
       question: card.question,
@@ -159,14 +164,28 @@ export const ReviewPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Stats Bar */}
-      <div className="flex justify-between text-center">
-        {[
-          { num: stats.due, lbl: 'Due', cls: 'text-amber-400' },
-          { num: stats.new, lbl: 'New' },
-          { num: stats.learning, lbl: 'Learning' },
-          { num: stats.review, lbl: 'Review' },
-          { num: stats.today, lbl: 'Today' },
+      {!loaded ? (
+        <>
+          <div className="flex justify-between">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="flex flex-col items-center gap-1">
+                <Skeleton className="h-7 w-10" />
+                <Skeleton className="h-3 w-12" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="h-48 rounded-lg" />
+        </>
+      ) : (
+        <>
+          {/* Stats Bar */}
+          <div className="flex justify-between text-center">
+            {[
+              { num: stats.due, lbl: 'Due', cls: 'text-amber-400' },
+              { num: stats.new, lbl: 'New' },
+              { num: stats.learning, lbl: 'Learning' },
+              { num: stats.review, lbl: 'Review' },
+              { num: stats.today, lbl: 'Today' },
           { num: stats.total, lbl: 'Total' },
         ].map(s => (
           <div key={s.lbl} className="flex flex-col items-center gap-0.5">
@@ -294,6 +313,8 @@ export const ReviewPage: React.FC = () => {
           </>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 };

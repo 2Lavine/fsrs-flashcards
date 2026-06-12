@@ -3,6 +3,7 @@ import { useTaskQueue, type AiTask } from '../services/task-queue';
 import { cardPresets } from '../services/preset-loader';
 import { llmStorage } from '../services/llm-storage';
 import { cardQuery, useStore } from '../store-instance';
+import { toast } from '../hooks/useToast';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { Badge } from './ui/badge';
@@ -126,7 +127,7 @@ export const AiCardsPage: React.FC = () => {
     if (!content.trim()) return;
     const configs = await llmStorage.getAll();
     const config = configs[0];
-    if (!config?.baseURL) return;
+    if (!config?.baseURL) { toast('Please configure LLM settings first'); return; }
     const cats = await cardQuery.getCategoriesByDeck(deckId || undefined);
     enqueue(
       config,
