@@ -7,7 +7,10 @@ import reviews from './routes/reviews';
 import cards from './routes/cards';
 
 const app = new Hono();
-app.use('*', cors());
+// CORS only needed for local dev (different port); Vercel serves from same origin
+if (!process.env.VERCEL) {
+  app.use('*', cors());
+}
 
 llmProxyRoutes(app);
 
