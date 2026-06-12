@@ -68,7 +68,7 @@ stats.get('/daily-counts', async (c) => {
     .from(reviewLogs)
     .where(gte(reviewLogs.review, startStr))
     .groupBy(sql`substr(review, 1, 10)`)
-    .orderBy(sql`day`)
+    .orderBy(sql`substr(review, 1, 10)`)
     .all();
   const map = new Map<string, number>();
   for (const r of rows) map.set(r.day, r.c);
@@ -90,7 +90,7 @@ stats.get('/category-counts', async (c) => {
     .from(cards)
     .where(not(eq(cards.category, '')))
     .groupBy(cards.category)
-    .orderBy(sql`count DESC`)
+    .orderBy(sql`count(*) DESC`)
     .all();
   return c.json({ categories: rows });
 });
