@@ -65,7 +65,7 @@ export const App: React.FC = () => {
                 {pages.find(p => p.key === page)?.label}
               </span>
             </div>
-            <div className="flex-1 overflow-y-auto px-6 py-6 max-w-3xl mx-auto w-full">
+            <div className="flex-1 overflow-y-auto scrollbar-none px-6 py-6 max-w-3xl mx-auto w-full">
               {page === 'review' && <ReviewPage />}
               {page === 'browse' && <BrowsePage />}
               {page === 'aicards' && <AiCardsPage />}
