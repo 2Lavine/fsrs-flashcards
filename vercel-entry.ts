@@ -2,7 +2,7 @@ import { app } from './packages/server/src/app';
 
 // Manual bridge: Vercel Node.js (req, res) → Hono Web fetch
 export default async function handler(req: any, res: any) {
-  // Build Web Request from Vercel's Node.js req
+  const path = req.url?.split('?')[0] || '/';
   const url = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}${req.url}`;
   const headers = new Headers();
   for (const [k, v] of Object.entries(req.headers || {})) {
@@ -11,8 +11,6 @@ export default async function handler(req: any, res: any) {
 
   const init: RequestInit = { method: req.method, headers };
   if (req.method !== 'GET' && req.method !== 'HEAD' && req.body != null) {
-    // Vercel Node.js runtime pre-parses JSON bodies into objects.
-    // The Web Request constructor expects a string/ReadableStream, not a plain object.
     init.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
     if (!headers.has('content-type')) {
       headers.set('content-type', 'application/json');
@@ -22,7 +20,11 @@ export default async function handler(req: any, res: any) {
   const webReq = new Request(url, init);
   const webRes = await app.fetch(webReq);
 
-  // Write Web Response to Vercel's Node.js res
+  // If Hono returned 404, log the path for debugging
+  if (webRes.status === 404) {
+    console.error(`[bridge] 404 for ${req.method} ${path}`);
+  }
+
   res.status(webRes.status);
   webRes.headers.forEach((v, k) => res.setHeader(k, v));
   if (webRes.body) {

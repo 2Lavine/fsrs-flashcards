@@ -9,7 +9,7 @@ await esbuild.build({
   bundle: true,
   platform: 'node',
   target: 'es2022',
-  format: 'esm',
+  format: 'cjs',
   outfile: resolve(root, 'api/[...route].js'),
   external: ['@libsql/client'],
   alias: {
