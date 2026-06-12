@@ -6,8 +6,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { AiCardsPage } from './components/AiCardsPage';
 import { ImportModal } from './components/ImportModal';
 import { useToast } from './hooks/useToast';
-import { useTaskQueue } from './services/task-queue';
-import { AiCardList } from './components/AiCardList';
+import { AiTaskPanel } from './components/AiTaskPanel';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from './components/ui/sidebar';
 import { TooltipProvider } from './components/ui/tooltip';
 import { BookOpen, Library, Sparkles, BarChart3, Settings } from 'lucide-react';
@@ -25,7 +24,6 @@ const pages: { key: Page; label: string; icon: React.ElementType }[] = [
 export const App: React.FC = () => {
   const [page, setPage] = React.useState<Page>('review');
   const { toasts, toast } = useToast();
-  const taskCount = useTaskQueue(s => s.tasks.length);
 
   return (
     <TooltipProvider>
@@ -77,12 +75,7 @@ export const App: React.FC = () => {
 
           {/* Right Sidebar - AI Tasks */}
           <aside className="w-80 border-l shrink-0 hidden lg:flex flex-col bg-sidebar">
-            <div className="px-4 py-3 border-b shrink-0">
-              <h3 className="text-sm font-semibold">AI Tasks{taskCount > 0 ? ` (${taskCount})` : ''}</h3>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              <AiCardList />
-            </div>
+            <AiTaskPanel />
           </aside>
         </div>
 

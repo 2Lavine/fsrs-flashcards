@@ -1,10 +1,5 @@
 {
   "buildCommand": "pnpm build",
   "outputDirectory": "packages/client/dist",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "functions": {
-    "api/**/*.ts": {
-      "includeFiles": "packages/llm-config/src/**"
-    }
-  }
+  "installCommand": "pnpm install --frozen-lockfile"
 }

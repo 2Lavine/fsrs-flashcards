@@ -1,8 +1,22 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@libsql/client';
 import { State, createEmptyCard } from 'ts-fsrs';
-import { createLLMProvider } from '@sour/llm-config';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createAnthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
+
+function createLLMProvider(config: { baseURL: string; apiKey: string; model: string; apiFormat: string }) {
+  if (config.apiFormat === 'anthropic') {
+    return createAnthropic({
+      baseURL: config.baseURL || undefined,
+      apiKey: config.apiKey,
+    });
+  }
+  return createOpenAI({
+    baseURL: config.baseURL,
+    apiKey: config.apiKey,
+  });
+}
 
 const client = createClient({
   url: process.env.TURSO_URL!,

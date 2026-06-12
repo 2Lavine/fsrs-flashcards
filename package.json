@@ -14,7 +14,10 @@
     "concurrently": "^10.0.3"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^1.2.0",
+    "@ai-sdk/openai": "^1.2.0",
     "@libsql/client": "^0.17.3",
+    "ai": "^4.0.0",
     "ts-fsrs": "^5.4.1"
   }
 }
