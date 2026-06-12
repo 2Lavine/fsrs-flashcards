@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Rating } from 'ts-fsrs';
 import type { Grade } from 'ts-fsrs';
-import { useReviewStore } from '../services/review-store';
+import { useReviewStore } from '../stores/review-store';
 import { formatDate, renderCloze, ratingLabel } from '../format';
 import { useReviewHotkeys } from '../hooks/useReviewHotkeys';
 import { cardPresets } from '../services/preset-loader';
