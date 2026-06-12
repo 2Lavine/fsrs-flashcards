@@ -8,6 +8,7 @@
     "build": "pnpm --filter @fsrs/client build && node scripts/build-api.mjs",
     "build:api": "node scripts/build-api.mjs",
     "deploy": "pnpm build && vercel deploy --prod",
+    "setup": "cp scripts/git-hooks/* .git/hooks/ && chmod +x .git/hooks/pre-push",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
@@ -15,7 +16,8 @@
     "@vercel/node": "^5.8.15",
     "concurrently": "^10.0.3",
     "drizzle-kit": "^0.31.10",
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.28.0",
+    "vercel": "^54.11.1"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.0",
