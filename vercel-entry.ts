@@ -10,8 +10,13 @@ export default async function handler(req: any, res: any) {
   }
 
   const init: RequestInit = { method: req.method, headers };
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    init.body = req.body;
+  if (req.method !== 'GET' && req.method !== 'HEAD' && req.body != null) {
+    // Vercel Node.js runtime pre-parses JSON bodies into objects.
+    // The Web Request constructor expects a string/ReadableStream, not a plain object.
+    init.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    if (!headers.has('content-type')) {
+      headers.set('content-type', 'application/json');
+    }
   }
 
   const webReq = new Request(url, init);
