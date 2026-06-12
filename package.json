@@ -7,6 +7,7 @@
     "dev:server": "pnpm --filter @fsrs/server dev",
     "build": "pnpm --filter @fsrs/client build && node scripts/build-api.mjs",
     "build:api": "node scripts/build-api.mjs",
+    "deploy": "pnpm build && vercel deploy --prod",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
