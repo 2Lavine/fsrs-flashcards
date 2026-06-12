@@ -1,6 +1,5 @@
 {
-  "buildCommand": "pnpm build",
-  "outputDirectory": "packages/client/dist",
+  "buildCommand": "pnpm build && node scripts/deploy-build.mjs",
   "installCommand": "pnpm install --frozen-lockfile",
   "routes": [
     { "handle": "filesystem" },
