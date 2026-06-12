@@ -11,11 +11,7 @@ await esbuild.build({
   target: 'es2022',
   format: 'esm',
   outfile: resolve(root, 'api/[...route].js'),
-  external: [
-    '@libsql/client',
-    '@ai-sdk/openai', '@ai-sdk/anthropic', 'ai', 'zod',
-    'drizzle-orm', 'ts-fsrs',
-  ],
+  external: ['@libsql/client'],
   alias: {
     '@sour/llm-config': resolve(root, 'packages/llm-config/src'),
   },
