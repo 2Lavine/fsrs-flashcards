@@ -10,23 +10,7 @@ const staticDir = resolve(output, 'static');
 mkdirSync(staticDir, { recursive: true });
 cpSync(resolve(root, 'packages/client/dist'), staticDir, { recursive: true });
 
-// 2. Set up API function
-const funcDir = resolve(output, 'functions/api/[...route].func/api');
-mkdirSync(funcDir, { recursive: true });
-
-// Copy the bundled handler
-cpSync(resolve(root, 'api/[...route].js'), resolve(funcDir, '[...route].js'));
-
-// Function config
-const vcConfig = {
-  handler: 'api/[...route].js',
-  runtime: 'nodejs24.x',
-  launcherType: 'Nodejs',
-  shouldAddHelpers: true,
-};
-writeFileSync(resolve(output, 'functions/api/[...route].func/.vc-config.json'), JSON.stringify(vcConfig, null, 2));
-
-// 3. Route config
+// 2. Route config only — Vercel handles function packaging
 const config = {
   version: 3,
   routes: [
@@ -41,4 +25,4 @@ const config = {
 };
 writeFileSync(resolve(output, 'config.json'), JSON.stringify(config, null, 2));
 
-console.log('[deploy-build] Build Output API v3 ready');
+console.log('[deploy-build] Build Output API v3 config ready');
