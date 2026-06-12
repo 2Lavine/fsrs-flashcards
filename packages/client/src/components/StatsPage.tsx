@@ -13,12 +13,12 @@ export const StatsPage: React.FC = () => {
   const [recent, setRecent] = useState<{ id: number; rating: number; due: Date; review: Date; question: string }[]>([]);
 
   useEffect(() => {
-    cardQuery.getStats().then(setStats);
-    cardQuery.getStreak().then(setStreak);
-    cardQuery.getDailyCounts().then(setDaily);
-    cardQuery.getCategoryCounts().then(setCategories);
-    cardQuery.getRatingCounts().then(setRatings);
-    cardQuery.getRecentLogs().then(setRecent);
+    cardQuery.getStats().then(setStats).catch(() => {});
+    cardQuery.getStreak().then(setStreak).catch(() => {});
+    cardQuery.getDailyCounts().then(setDaily).catch(() => {});
+    cardQuery.getCategoryCounts().then(setCategories).catch(() => {});
+    cardQuery.getRatingCounts().then(setRatings).catch(() => {});
+    cardQuery.getRecentLogs().then(setRecent).catch(() => {});
   }, [useStore(s => s.version)]);
 
   const maxDaily = Math.max(1, ...daily.map(d => d.count));

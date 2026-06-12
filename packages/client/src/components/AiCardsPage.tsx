@@ -7,7 +7,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { Badge } from './ui/badge';
 import { Textarea } from './ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger } from './ui/select';
 import {
   Loader2,
   CheckCircle2,
@@ -16,6 +16,7 @@ import {
   Trash2,
   Download,
   Zap,
+  ChevronDown,
 } from 'lucide-react';
 
 const statusConfig: Record<string, { icon: React.ReactNode; label: string; borderClass: string }> = {
@@ -39,27 +40,35 @@ const statusConfig: Record<string, { icon: React.ReactNode; label: string; borde
 const TaskCard: React.FC<{ task: AiTask }> = ({ task }) => {
   const { dismiss, addCards } = useTaskQueue();
   const cfg = statusConfig[task.status];
+  const [expanded, setExpanded] = useState(false);
+  const hasDetails = task.status === 'done' || task.status === 'error';
 
   return (
     <Card className={`border-l-2 ${cfg.borderClass}`}>
-      <CardHeader className="!flex !flex-row items-center gap-3 pb-2">
+      <CardHeader
+        className={`!flex !flex-row items-center gap-3 pb-2 ${hasDetails ? 'cursor-pointer' : ''}`}
+        onClick={() => hasDetails && setExpanded(!expanded)}
+      >
         {cfg.icon}
         <Badge variant="outline" className="shrink-0 text-xs">
           {task.presetLabel}
         </Badge>
         <span className="text-xs text-muted-foreground">{cfg.label}</span>
         <span className="text-sm text-muted-foreground truncate flex-1">{task.question}</span>
+        {hasDetails && (
+          <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        )}
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => dismiss(task.id)}
+          onClick={(e) => { e.stopPropagation(); dismiss(task.id); }}
           className="h-6 w-6 p-0"
         >
           ×
         </Button>
       </CardHeader>
 
-      {task.status === 'done' && task.cards.length > 0 && (
+      {expanded && task.status === 'done' && task.cards.length > 0 && (
         <CardContent className="flex flex-col gap-2 pb-3">
           {task.cards.map((c, i) => (
             <Card key={i} className="bg-muted/50">
@@ -86,7 +95,7 @@ const TaskCard: React.FC<{ task: AiTask }> = ({ task }) => {
         </CardContent>
       )}
 
-      {task.status === 'error' && (
+      {expanded && task.status === 'error' && (
         <CardContent className="text-xs text-destructive pb-3">{task.error}</CardContent>
       )}
     </Card>
@@ -205,7 +214,7 @@ export const AiCardsPage: React.FC = () => {
             {decks.length > 0 && (
               <Select value={deckId} onValueChange={v => setDeckId(v === '_none' || v === null ? '' : v)}>
                 <SelectTrigger className="h-7 text-xs w-32">
-                  <SelectValue placeholder="Deck" />
+                  {deckId ? <span>{decks.find(d => d.id === deckId)?.name ?? deckId}</span> : <span className="text-muted-foreground">Deck</span>}
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">No deck</SelectItem>

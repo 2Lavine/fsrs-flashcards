@@ -1,152 +1,229 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@libsql/client';
 import { State, createEmptyCard } from 'ts-fsrs';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createAnthropic } from '@ai-sdk/anthropic';
+import { createLLMProvider } from '@sour/llm-config';
 import { generateText } from 'ai';
-
-function createLLMProvider(config: { baseURL: string; apiKey: string; model: string; apiFormat: string }) {
-  if (config.apiFormat === 'anthropic') {
-    return createAnthropic({
-      baseURL: config.baseURL || undefined,
-      apiKey: config.apiKey,
-    });
-  }
-  return createOpenAI({
-    baseURL: config.baseURL,
-    apiKey: config.apiKey,
-  });
-}
-
-const client = createClient({
-  url: process.env.TURSO_URL!,
-  authToken: process.env.TURSO_AUTH_TOKEN!,
-});
+import { eq, and, sql, inArray, not, gte, lt, count, avg } from 'drizzle-orm';
+import { db } from './db';
+import { cards, decks, reviewLogs, settings } from './schema';
 
 function uid() { return crypto.randomUUID(); }
 const now = () => new Date().toISOString();
 
-// ─── Route table ────────────────────────────
-
 type Handler = (req: VercelRequest, res: VercelResponse) => Promise<void>;
 
 const routes: Record<string, Handler> = {
-  // Health
-  'GET /api/health': async (_req, res) => { res.json({ ok: true }); },
+  'GET /api/health': async (_req, res) => {
+    res.json({ ok: true });
+  },
 
   // Due cards
   'GET /api/due-cards': async (req, res) => {
     const { category, deckId, paused } = req.query;
     const pa = typeof paused === 'string' ? paused.split(',').filter(Boolean) : [];
-    const conds = [`(c.fsrs_state = ${State.New} OR c.fsrs_due <= ?)`];
-    const args: (string | number)[] = [now()];
-    if (category) { conds.push('c.category = ?'); args.push(String(category)); }
-    if (deckId) { conds.push('c.deck_id = ?'); args.push(String(deckId)); }
-    if (pa.length) { conds.push(`c.category NOT IN (${pa.map(() => '?').join(',')})`); args.push(...pa); }
-    const r = await client.execute({
-      sql: `SELECT c.*, d.name as deck_name FROM cards c JOIN decks d ON c.deck_id = d.id WHERE ${conds.join(' AND ')} ORDER BY c.fsrs_due ASC`,
-      args,
-    });
-    res.json({ cards: r.rows });
+
+    const conds = [
+      sql`(${cards.fsrsState} = ${State.New} OR ${cards.fsrsDue} <= ${now()})`,
+    ];
+    if (category) conds.push(eq(cards.category, String(category)));
+    if (deckId) conds.push(eq(cards.deckId, String(deckId)));
+    if (pa.length) conds.push(not(inArray(cards.category, pa)));
+
+    const rows = await db
+      .select({
+        id: cards.id, deck_id: cards.deckId, deck_name: decks.name,
+        question: cards.question, answer: cards.answer,
+        tags: cards.tags, category: cards.category,
+        created_at: cards.createdAt,
+        fsrs_due: cards.fsrsDue, fsrs_stability: cards.fsrsStability,
+        fsrs_difficulty: cards.fsrsDifficulty, fsrs_elapsed_days: cards.fsrsElapsedDays,
+        fsrs_scheduled_days: cards.fsrsScheduledDays, fsrs_reps: cards.fsrsReps,
+        fsrs_lapses: cards.fsrsLapses, fsrs_state: cards.fsrsState,
+        fsrs_last_review: cards.fsrsLastReview, fsrs_learning_steps: cards.fsrsLearningSteps,
+      })
+      .from(cards)
+      .innerJoin(decks, eq(cards.deckId, decks.id))
+      .where(and(...conds))
+      .orderBy(cards.fsrsDue)
+      .all();
+
+    res.json({ cards: rows });
   },
 
-  // All cards (browse/search)
+  // All cards
   'GET /api/cards': async (req, res) => {
     const { search, deckId } = req.query;
-    const conds: string[] = []; const args: string[] = [];
-    if (search) { conds.push('(c.question LIKE ? OR c.answer LIKE ? OR c.tags LIKE ? OR d.name LIKE ?)'); const q = `%${search}%`; args.push(q, q, q, q); }
-    if (deckId) { conds.push('c.deck_id = ?'); args.push(String(deckId)); }
-    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-    const r = await client.execute({ sql: `SELECT c.*, d.name as deck_name FROM cards c JOIN decks d ON c.deck_id = d.id ${where} ORDER BY c.fsrs_due ASC`, args });
-    res.json({ cards: r.rows });
+    const conds = [];
+    if (search) {
+      const q = `%${search}%`;
+      conds.push(sql`(${cards.question.like(q)} OR ${cards.answer.like(q)} OR ${cards.tags.like(q)} OR ${decks.name.like(q)})`);
+    }
+    if (deckId) conds.push(eq(cards.deckId, String(deckId)));
+
+    const rows = await db
+      .select({
+        id: cards.id, deck_id: cards.deckId, deck_name: decks.name,
+        question: cards.question, answer: cards.answer,
+        tags: cards.tags, category: cards.category,
+        created_at: cards.createdAt,
+        fsrs_due: cards.fsrsDue, fsrs_stability: cards.fsrsStability,
+        fsrs_difficulty: cards.fsrsDifficulty, fsrs_elapsed_days: cards.fsrsElapsedDays,
+        fsrs_scheduled_days: cards.fsrsScheduledDays, fsrs_reps: cards.fsrsReps,
+        fsrs_lapses: cards.fsrsLapses, fsrs_state: cards.fsrsState,
+        fsrs_last_review: cards.fsrsLastReview, fsrs_learning_steps: cards.fsrsLearningSteps,
+      })
+      .from(cards)
+      .innerJoin(decks, eq(cards.deckId, decks.id))
+      .where(conds.length ? and(...conds) : undefined)
+      .orderBy(cards.fsrsDue)
+      .all();
+
+    res.json({ cards: rows });
   },
 
-  // Stats
+  // Stats — single query with Drizzle
   'GET /api/stats': async (_req, res) => {
     const n = now();
-    const [total, due, nc, lr, review, tr, td] = await Promise.all([
-      client.execute('SELECT COUNT(*) as c FROM cards').then(r => (r.rows[0]?.c as number) ?? 0),
-      client.execute(`SELECT COUNT(*) as c FROM cards WHERE fsrs_state = ${State.New} OR fsrs_due <= ?`, [n]).then(r => (r.rows[0]?.c as number) ?? 0),
-      client.execute(`SELECT COUNT(*) as c FROM cards WHERE fsrs_state = ${State.New}`).then(r => (r.rows[0]?.c as number) ?? 0),
-      client.execute(`SELECT COUNT(*) as c FROM cards WHERE fsrs_state IN (${State.Learning}, ${State.Relearning})`).then(r => (r.rows[0]?.c as number) ?? 0),
-      client.execute(`SELECT COUNT(*) as c FROM cards WHERE fsrs_state = ${State.Review}`).then(r => (r.rows[0]?.c as number) ?? 0),
-      client.execute('SELECT COUNT(*) as c FROM review_logs').then(r => (r.rows[0]?.c as number) ?? 0),
-      client.execute("SELECT COUNT(*) as c FROM review_logs WHERE review LIKE ?", [`${n.slice(0, 10)}%`]).then(r => (r.rows[0]?.c as number) ?? 0),
-    ]);
-    const avg = await client.execute('SELECT AVG(fsrs_difficulty) as avg FROM cards WHERE fsrs_state != 0');
-    res.json({ total, due, new: nc, learning: lr, review, totalReviews: tr, today: td, avgDifficulty: avg.rows[0]?.avg != null ? (avg.rows[0].avg as number).toFixed(2) : '-' });
+    const today = n.slice(0, 10);
+    const tomorrow = new Date(new Date(today).getTime() + 86400000).toISOString().slice(0, 10);
+
+    const [r] = await db
+      .select({
+        total: count(cards.id),
+        due: sql<number>`SUM(CASE WHEN ${cards.fsrsState} = ${State.New} OR ${cards.fsrsDue} <= ${n} THEN 1 ELSE 0 END)`,
+        newCards: sql<number>`SUM(CASE WHEN ${cards.fsrsState} = ${State.New} THEN 1 ELSE 0 END)`,
+        learning: sql<number>`SUM(CASE WHEN ${cards.fsrsState} IN (${State.Learning}, ${State.Relearning}) THEN 1 ELSE 0 END)`,
+        review: sql<number>`SUM(CASE WHEN ${cards.fsrsState} = ${State.Review} THEN 1 ELSE 0 END)`,
+        // Subqueries for review_logs
+        totalReviews: sql<number>`(SELECT COUNT(*) FROM review_logs)`,
+        todayReviews: sql<number>`(SELECT COUNT(*) FROM review_logs WHERE review >= ${today} AND review < ${tomorrow})`,
+        avgDifficulty: sql<number>`(SELECT AVG(fsrs_difficulty) FROM cards WHERE fsrs_state != 0)`,
+      })
+      .from(cards);
+
+    res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=60');
+    res.json({
+      total: r.total ?? 0,
+      due: r.due ?? 0,
+      new: r.newCards ?? 0,
+      learning: r.learning ?? 0,
+      review: r.review ?? 0,
+      totalReviews: r.totalReviews ?? 0,
+      today: r.todayReviews ?? 0,
+      avgDifficulty: r.avgDifficulty != null ? r.avgDifficulty.toFixed(2) : '-',
+    });
   },
 
   // Streak
   'GET /api/streak': async (_req, res) => {
-    const r = await client.execute(`
+    const r = db.run(sql`
       WITH RECURSIVE dates(d) AS (SELECT date('now') UNION ALL SELECT date(d, '-1 day') FROM dates LIMIT 365),
       daily AS (SELECT substr(review, 1, 10) as day, COUNT(*) as c FROM review_logs GROUP BY day)
       SELECT COUNT(*) as streak FROM dates LEFT JOIN daily ON dates.d = daily.day WHERE daily.c > 0
       AND dates.d > COALESCE((SELECT dates.d FROM dates LEFT JOIN daily ON dates.d = daily.day WHERE daily.c IS NULL ORDER BY dates.d DESC LIMIT 1), date('now', '-365 day'))
     `);
-    res.json({ streak: (r.rows[0]?.streak as number) ?? 0 });
+    // Raw SQL for complex CTE, use Drizzle's SQL template for parameterized query
+    const rows = await db.all<{ streak: number }>(sql`
+      WITH RECURSIVE dates(d) AS (
+        SELECT date('now')
+        UNION ALL
+        SELECT date(d, '-1 day') FROM dates LIMIT 365
+      ),
+      daily AS (
+        SELECT substr(review, 1, 10) as day, COUNT(*) as c FROM review_logs GROUP BY day
+      )
+      SELECT COUNT(*) as streak
+      FROM dates
+      LEFT JOIN daily ON dates.d = daily.day
+      WHERE daily.c > 0
+      AND dates.d > COALESCE(
+        (SELECT dates.d FROM dates LEFT JOIN daily ON dates.d = daily.day WHERE daily.c IS NULL ORDER BY dates.d DESC LIMIT 1),
+        date('now', '-365 day')
+      )
+    `);
+    res.json({ streak: rows[0]?.streak ?? 0 });
   },
 
   // Decks
   'GET /api/decks': async (_req, res) => {
-    const r = await client.execute('SELECT id, name, source FROM decks ORDER BY name');
-    res.json({ decks: r.rows });
+    const rows = await db.select({ id: decks.id, name: decks.name, source: decks.source })
+      .from(decks).orderBy(decks.name).all();
+    res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=60');
+    res.json({ decks: rows });
   },
 
   // Categories
   'GET /api/categories': async (req, res) => {
     const deckId = req.query.deckId;
-    const r = deckId
-      ? await client.execute("SELECT DISTINCT category as name FROM cards WHERE category != '' AND deck_id = ? ORDER BY category", [String(deckId)])
-      : await client.execute("SELECT DISTINCT category as name FROM cards WHERE category != '' ORDER BY category");
-    res.json({ categories: r.rows.map(r => r.name as string) });
+    const rows = deckId
+      ? await db.selectDistinct({ name: cards.category }).from(cards)
+          .where(and(eq(cards.deckId, String(deckId)), not(eq(cards.category, ''))))
+          .orderBy(cards.category).all()
+      : await db.selectDistinct({ name: cards.category }).from(cards)
+          .where(not(eq(cards.category, '')))
+          .orderBy(cards.category).all();
+    res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=60');
+    res.json({ categories: rows.map(r => r.name) });
   },
 
   // Paused categories
   'GET /api/paused': async (_req, res) => {
-    const r = await client.execute("SELECT value FROM settings WHERE key = 'paused_categories'");
-    try { res.json({ paused: JSON.parse((r.rows[0]?.value as string) || '[]') }); } catch { res.json({ paused: [] }); }
+    const r = await db.select({ value: settings.value }).from(settings).where(eq(settings.key, 'paused_categories')).get();
+    try { res.json({ paused: JSON.parse(r?.value || '[]') }); } catch { res.json({ paused: [] }); }
   },
 
   // Toggle pause
   'POST /api/paused/:cat': async (req, res) => {
     const cat = decodeURIComponent(req.query.cat as string || '');
-    const r = await client.execute("SELECT value FROM settings WHERE key = 'paused_categories'");
+    const r = await db.select({ value: settings.value }).from(settings).where(eq(settings.key, 'paused_categories')).get();
     let paused: string[] = [];
-    try { paused = JSON.parse((r.rows[0]?.value as string) || '[]'); } catch {}
+    try { paused = JSON.parse(r?.value || '[]'); } catch {}
     const idx = paused.indexOf(cat);
     if (idx >= 0) paused.splice(idx, 1); else paused.push(cat);
-    await client.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('paused_categories', ?)", [JSON.stringify(paused)]);
+    await db.insert(settings).values({ key: 'paused_categories', value: JSON.stringify(paused) })
+      .onConflictDoUpdate({ target: settings.key, set: { value: JSON.stringify(paused) } });
     res.json({ ok: true });
   },
 
   // Review
   'POST /api/review': async (req, res) => {
-    const { cardId, rating, fsrs, log } = req.body || {};
-    if (!cardId || !rating || !fsrs || !log) return res.status(400).json({ error: 'Missing fields' });
-    await Promise.all([
-      client.execute({
-        sql: 'UPDATE cards SET fsrs_due=?,fsrs_stability=?,fsrs_difficulty=?,fsrs_elapsed_days=?,fsrs_scheduled_days=?,fsrs_reps=?,fsrs_lapses=?,fsrs_state=?,fsrs_last_review=?,fsrs_learning_steps=? WHERE id=?',
-        args: [fsrs.due, fsrs.stability, fsrs.difficulty, fsrs.elapsed_days, fsrs.scheduled_days, fsrs.reps, fsrs.lapses, fsrs.state, fsrs.last_review ?? null, fsrs.learning_steps, cardId],
-      }),
-      client.execute({
-        sql: 'INSERT INTO review_logs (card_id,rating,state,due,stability,difficulty,elapsed_days,last_elapsed_days,scheduled_days,learning_steps,review) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-        args: [cardId, rating, fsrs.state, fsrs.due, fsrs.stability, fsrs.difficulty, log.elapsed_days, log.last_elapsed_days, log.scheduled_days, log.learning_steps, log.review],
-      }),
-    ]);
+    const { cardId, rating, fsrs: f, log } = req.body || {};
+    if (!cardId || !rating || !f || !log) return res.status(400).json({ error: 'Missing fields' });
+
+    await db.update(cards).set({
+      fsrsDue: f.due, fsrsStability: f.stability, fsrsDifficulty: f.difficulty,
+      fsrsElapsedDays: f.elapsed_days, fsrsScheduledDays: f.scheduled_days,
+      fsrsReps: f.reps, fsrsLapses: f.lapses, fsrsState: f.state,
+      fsrsLastReview: f.last_review ?? null, fsrsLearningSteps: f.learning_steps,
+    }).where(eq(cards.id, cardId));
+
+    await db.insert(reviewLogs).values({
+      cardId, rating, state: f.state, due: f.due,
+      stability: f.stability, difficulty: f.difficulty,
+      elapsedDays: log.elapsed_days, lastElapsedDays: log.last_elapsed_days,
+      scheduledDays: log.scheduled_days, learningSteps: log.learning_steps,
+      review: log.review,
+    });
+
     res.json({ ok: true });
   },
 
   // Undo
   'POST /api/undo': async (req, res) => {
-    const { cardId, prevFSRS } = req.body || {};
-    if (!cardId || !prevFSRS) return res.status(400).json({ error: 'Missing fields' });
-    await client.execute({
-      sql: 'UPDATE cards SET fsrs_due=?,fsrs_stability=?,fsrs_difficulty=?,fsrs_elapsed_days=?,fsrs_scheduled_days=?,fsrs_reps=?,fsrs_lapses=?,fsrs_state=?,fsrs_last_review=?,fsrs_learning_steps=? WHERE id=?',
-      args: [prevFSRS.due, prevFSRS.stability, prevFSRS.difficulty, prevFSRS.elapsed_days, prevFSRS.scheduled_days, prevFSRS.reps, prevFSRS.lapses, prevFSRS.state, prevFSRS.last_review ?? null, prevFSRS.learning_steps, cardId],
-    });
-    await client.execute('DELETE FROM review_logs WHERE id = (SELECT id FROM review_logs WHERE card_id = ? ORDER BY review DESC LIMIT 1)', [cardId]);
+    const { cardId, prevFSRS: f } = req.body || {};
+    if (!cardId || !f) return res.status(400).json({ error: 'Missing fields' });
+
+    await db.update(cards).set({
+      fsrsDue: f.due, fsrsStability: f.stability, fsrsDifficulty: f.difficulty,
+      fsrsElapsedDays: f.elapsed_days, fsrsScheduledDays: f.scheduled_days,
+      fsrsReps: f.reps, fsrsLapses: f.lapses, fsrsState: f.state,
+      fsrsLastReview: f.last_review ?? null, fsrsLearningSteps: f.learning_steps,
+    }).where(eq(cards.id, cardId));
+
+    // Delete latest review_log for this card
+    await db.delete(reviewLogs).where(eq(reviewLogs.id,
+      sql`(SELECT id FROM review_logs WHERE card_id = ${cardId} ORDER BY review DESC LIMIT 1)`
+    ));
+
     res.json({ ok: true });
   },
 
@@ -155,90 +232,129 @@ const routes: Record<string, Handler> = {
     const id = req.query.id as string;
     const { question, answer } = req.body || {};
     if (!question || !answer) return res.status(400).json({ error: 'Missing question or answer' });
-    await client.execute('UPDATE cards SET question = ?, answer = ? WHERE id = ?', [question, answer, id]);
+    await db.update(cards).set({ question, answer }).where(eq(cards.id, id));
     res.json({ ok: true });
   },
 
   // Delete card
   'DELETE /api/cards/:id': async (req, res) => {
     const id = req.query.id as string;
-    await client.execute('DELETE FROM review_logs WHERE card_id = ?', [id]);
-    await client.execute('DELETE FROM cards WHERE id = ?', [id]);
+    await db.delete(reviewLogs).where(eq(reviewLogs.cardId, id));
+    await db.delete(cards).where(eq(cards.id, id));
     res.json({ ok: true });
   },
 
   // Delete deck
   'DELETE /api/decks/:name': async (req, res) => {
     const name = decodeURIComponent(req.query.name as string);
-    const r = await client.execute('SELECT id FROM decks WHERE name = ?', [name]);
-    if (r.rows.length === 0) return res.json({ ok: true, deleted: 0 });
-    const deckId = r.rows[0].id as string;
-    await client.execute('DELETE FROM review_logs WHERE card_id IN (SELECT id FROM cards WHERE deck_id = ?)', [deckId]);
-    await client.execute('DELETE FROM cards WHERE deck_id = ?', [deckId]);
-    await client.execute('DELETE FROM decks WHERE id = ?', [deckId]);
+    const d = await db.select({ id: decks.id }).from(decks).where(eq(decks.name, name)).get();
+    if (!d) return res.json({ ok: true, deleted: 0 });
+    await db.delete(reviewLogs).where(eq(reviewLogs.cardId, sql`(SELECT id FROM cards WHERE deck_id = ${d.id})`));
+    await db.delete(cards).where(eq(cards.deckId, d.id));
+    await db.delete(decks).where(eq(decks.id, d.id));
     res.json({ ok: true, deleted: 1 });
   },
 
-  // Import
+  // Import — batch INSERT
   'POST /api/import': async (req, res) => {
-    const { deck, source, cards } = req.body || {};
-    if (!deck || !cards?.length) return res.status(400).json({ error: 'Need deck + cards' });
+    const { deck, source, cards: cardList } = req.body || {};
+    if (!deck || !cardList?.length) return res.status(400).json({ error: 'Need deck + cards' });
     const n = now();
-    const existing = await client.execute('SELECT id FROM decks WHERE name = ?', [deck]);
+
+    let d = await db.select({ id: decks.id }).from(decks).where(eq(decks.name, deck)).get();
     let deckId: string;
-    if (existing.rows[0]) {
-      deckId = existing.rows[0].id as string;
+    if (d) {
+      deckId = d.id;
     } else {
       deckId = uid();
-      await client.execute('INSERT INTO decks (id, name, source, created_at) VALUES (?,?,?,?)', [deckId, deck, source || '', n]);
+      await db.insert(decks).values({ id: deckId, name: deck, source: source || '', createdAt: n });
     }
-    let count = 0;
-    for (const c of cards) {
-      const fsrs = createEmptyCard();
-      await client.execute(
-        'INSERT INTO cards (id,deck_id,question,answer,tags,category,created_at,fsrs_due,fsrs_stability,fsrs_difficulty,fsrs_elapsed_days,fsrs_scheduled_days,fsrs_reps,fsrs_lapses,fsrs_state,fsrs_last_review,fsrs_learning_steps) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [uid(), deckId, c.question, c.answer, JSON.stringify(c.tags || []), c.category || '', n, n, 0, 0, 0, 0, 0, 0, State.New, null, 0]);
-      count++;
-    }
-    res.json({ ok: true, deck, imported: count });
+
+    await db.insert(cards).values(
+      cardList.map((c: { question: string; answer: string; tags?: string[]; category?: string }) => ({
+        id: uid(), deckId, question: c.question, answer: c.answer,
+        tags: JSON.stringify(c.tags || []), category: c.category || '', createdAt: n,
+        fsrsDue: n, fsrsStability: 0, fsrsDifficulty: 0,
+        fsrsElapsedDays: 0, fsrsScheduledDays: 0,
+        fsrsReps: 0, fsrsLapses: 0, fsrsState: State.New, fsrsLearningSteps: 0,
+      }))
+    );
+
+    res.json({ ok: true, deck, imported: cardList.length });
   },
 
-  // Daily counts (for stats chart)
+  // Daily counts — GROUP BY
   'GET /api/daily-counts': async (_req, res) => {
-    const counts: { label: string; count: number }[] = [];
+    const start = new Date(); start.setDate(start.getDate() - 6);
+    const startStr = start.toISOString().slice(0, 10);
+    const rows = await db
+      .select({ day: sql<string>`substr(review, 1, 10)`, c: count() })
+      .from(reviewLogs)
+      .where(gte(reviewLogs.review, startStr))
+      .groupBy(sql`substr(review, 1, 10)`)
+      .orderBy(sql`day`)
+      .all();
+    const map = new Map<string, number>();
+    for (const r of rows) map.set(r.day, r.c);
     const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i);
-      const ds = d.toISOString().slice(0, 10);
-      const r = await client.execute("SELECT COUNT(*) as c FROM review_logs WHERE review LIKE ?", [`${ds}%`]);
-      counts.push({ label: labels[d.getDay()], count: (r.rows[0]?.c as number) ?? 0 });
+    const counts: { label: string; count: number }[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start); d.setDate(d.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      counts.push({ label: labels[d.getDay()], count: map.get(key) ?? 0 });
     }
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=120');
     res.json({ daily: counts });
   },
 
   // Recent logs
   'GET /api/recent-logs': async (_req, res) => {
-    const r = await client.execute(
-      'SELECT rl.*, c.question FROM review_logs rl LEFT JOIN cards c ON rl.card_id = c.id ORDER BY rl.review DESC LIMIT 30');
-    res.json({ logs: r.rows });
+    const rows = await db
+      .select({
+        id: reviewLogs.id, card_id: reviewLogs.cardId, rating: reviewLogs.rating,
+        state: reviewLogs.state, due: reviewLogs.due,
+        stability: reviewLogs.stability, difficulty: reviewLogs.difficulty,
+        elapsed_days: reviewLogs.elapsedDays, review: reviewLogs.review,
+        question: cards.question,
+      })
+      .from(reviewLogs)
+      .leftJoin(cards, eq(reviewLogs.cardId, cards.id))
+      .orderBy(sql`${reviewLogs.review} DESC`)
+      .limit(30)
+      .all();
+    res.json({ logs: rows });
   },
 
   // Category counts
   'GET /api/category-counts': async (_req, res) => {
-    const r = await client.execute("SELECT category as name, COUNT(*) as count FROM cards WHERE category != '' GROUP BY category ORDER BY count DESC");
-    res.json({ categories: r.rows });
+    const rows = await db
+      .select({ name: cards.category, count: count() })
+      .from(cards)
+      .where(not(eq(cards.category, '')))
+      .groupBy(cards.category)
+      .orderBy(sql`count DESC`)
+      .all();
+    res.json({ categories: rows });
   },
 
-  // Rating counts
+  // Rating counts — GROUP BY
   'GET /api/rating-counts': async (_req, res) => {
     const labels: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
+    const rows = await db
+      .select({ rating: reviewLogs.rating, c: count() })
+      .from(reviewLogs)
+      .groupBy(reviewLogs.rating)
+      .all();
+    const map = new Map<number, number>();
+    for (const r of rows) map.set(r.rating, r.c);
     const result: { label: string; count: number }[] = [];
     for (let i = 1; i <= 4; i++) {
-      const r = await client.execute('SELECT COUNT(*) as c FROM review_logs WHERE rating = ?', [i]);
-      result.push({ label: labels[i], count: (r.rows[0]?.c as number) ?? 0 });
+      result.push({ label: labels[i], count: map.get(i) ?? 0 });
     }
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=120');
     res.json({ ratings: result });
   },
+
   // LLM proxy
   'POST /api/llm/fetch-models': async (req, res) => {
     const { baseURL, apiKey, apiFormat } = req.body || {};
@@ -255,16 +371,14 @@ const routes: Record<string, Handler> = {
     const data = await r.json();
     res.json(data);
   },
+
   'POST /api/llm/generate': async (req, res) => {
     const { baseURL, apiKey, model, apiFormat, system, prompt } = req.body || {};
     if (!baseURL || !apiKey || !model || !prompt) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     try {
-      const provider = createLLMProvider({
-        baseURL, apiKey, model,
-        apiFormat: apiFormat || 'openai',
-      });
+      const provider = createLLMProvider({ baseURL, apiKey, model, apiFormat: apiFormat || 'openai' });
       const result = await generateText({ model: provider(model), system, prompt });
       res.json({ text: result.text });
     } catch (e) {
@@ -273,18 +387,12 @@ const routes: Record<string, Handler> = {
   },
 };
 
-// ─── Catch-all handler ──────────────────────
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Resolve route key: "METHOD /api/path"
   let path = req.url?.split('?')[0] || '/';
-  // Handle dynamic segments: /api/paused/:cat, /api/cards/:id, /api/decks/:name
   let key = `${req.method} ${path}`;
 
-  // Try exact match first
   if (routes[key]) return routes[key](req, res);
 
-  // Try dynamic match
   for (const [routeKey, handler] of Object.entries(routes)) {
     const [method, routePath] = routeKey.split(' ');
     if (method !== req.method) continue;

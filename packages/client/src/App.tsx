@@ -9,7 +9,7 @@ import { useToast } from './hooks/useToast';
 import { AiTaskPanel } from './components/AiTaskPanel';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from './components/ui/sidebar';
 import { TooltipProvider } from './components/ui/tooltip';
-import { BookOpen, Library, Sparkles, BarChart3, Settings } from 'lucide-react';
+import { BookOpen, Library, Sparkles, BarChart3, Settings, PanelRightClose, PanelRightOpen } from 'lucide-react';
 
 type Page = 'review' | 'browse' | 'aicards' | 'stats' | 'settings';
 
@@ -23,6 +23,7 @@ const pages: { key: Page; label: string; icon: React.ElementType }[] = [
 
 export const App: React.FC = () => {
   const [page, setPage] = React.useState<Page>('review');
+  const [rightPanelOpen, setRightPanelOpen] = React.useState(true);
   const { toasts, toast } = useToast();
 
   return (
@@ -74,9 +75,24 @@ export const App: React.FC = () => {
           </main>
 
           {/* Right Sidebar - AI Tasks */}
-          <aside className="w-80 border-l shrink-0 hidden lg:flex flex-col bg-sidebar">
-            <AiTaskPanel />
-          </aside>
+          {rightPanelOpen ? (
+            <aside className="w-80 border-l shrink-0 hidden lg:flex flex-col bg-sidebar relative">
+              <button
+                onClick={() => setRightPanelOpen(false)}
+                className="absolute top-3 right-3 z-10 h-6 w-6 rounded-md border bg-background flex items-center justify-center hover:bg-accent transition-colors"
+              >
+                <PanelRightClose className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+              <AiTaskPanel onTaskClick={() => setPage('aicards')} />
+            </aside>
+          ) : (
+            <button
+              onClick={() => setRightPanelOpen(true)}
+              className="shrink-0 hidden lg:flex items-center justify-center w-7 border-l bg-sidebar hover:bg-accent transition-colors"
+            >
+              <PanelRightOpen className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
         </div>
 
         <ImportModal onToast={toast} />

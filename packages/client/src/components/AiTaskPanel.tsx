@@ -9,19 +9,22 @@ const statusConfig: Record<string, { icon: React.ReactNode; borderClass: string 
   error: { icon: <XCircle className="h-3 w-3 text-red-500 shrink-0" />, borderClass: 'border-l-red-500' },
 };
 
-const MiniTask: React.FC<{ task: AiTask }> = ({ task }) => {
+const MiniTask: React.FC<{ task: AiTask; onClick?: () => void }> = ({ task, onClick }) => {
   const { dismiss, addCards } = useTaskQueue();
   const cfg = statusConfig[task.status];
 
   return (
-    <div className={`border-l-2 ${cfg.borderClass} pl-3 py-2.5 group/row hover:bg-accent/50 transition-colors`}>
+    <div
+      className={`border-l-2 ${cfg.borderClass} pl-3 py-2.5 group/row hover:bg-accent/50 transition-colors cursor-pointer`}
+      onClick={onClick}
+    >
       <div className="flex items-center gap-1.5">
         {cfg.icon}
         <span className="text-xs font-medium truncate flex-1">{task.presetLabel}</span>
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => dismiss(task.id)}
+          onClick={(e) => { e.stopPropagation(); dismiss(task.id); }}
           className="h-5 w-5 p-0 opacity-0 group-hover/row:opacity-100 shrink-0 text-muted-foreground hover:text-foreground"
         >
           ×
@@ -37,7 +40,7 @@ const MiniTask: React.FC<{ task: AiTask }> = ({ task }) => {
       {task.status === 'done' && (
         <div className="mt-1 ml-5">
           <p className="text-[11px] text-muted-foreground">{task.cards.length} card{task.cards.length > 1 ? 's' : ''} ready</p>
-          <Button variant="default" size="sm" className="mt-1 h-6 text-xs" onClick={() => addCards(task.id)}>
+          <Button variant="default" size="sm" className="mt-1 h-6 text-xs" onClick={(e) => { e.stopPropagation(); addCards(task.id); }}>
             Import
           </Button>
         </div>
@@ -50,7 +53,7 @@ const MiniTask: React.FC<{ task: AiTask }> = ({ task }) => {
   );
 };
 
-export const AiTaskPanel: React.FC = () => {
+export const AiTaskPanel: React.FC<{ onTaskClick?: () => void }> = ({ onTaskClick }) => {
   const tasks = useTaskQueue(s => s.tasks);
   const runningCount = tasks.filter(t => t.status === 'running').length;
 
@@ -76,7 +79,7 @@ export const AiTaskPanel: React.FC = () => {
           </div>
         ) : (
           <div className="divide-y divide-border/50">
-            {tasks.map(t => <MiniTask key={t.id} task={t} />)}
+            {tasks.map(t => <MiniTask key={t.id} task={t} onClick={onTaskClick} />)}
           </div>
         )}
       </div>

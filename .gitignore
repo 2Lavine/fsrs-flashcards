@@ -4,4 +4,4 @@ dist
 .env
 .env.local
 .vercel
-api/[...route].js
+api/\[...route\].js
