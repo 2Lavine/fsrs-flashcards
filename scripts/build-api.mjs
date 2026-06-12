@@ -14,7 +14,7 @@ await esbuild.build({
   external: [
     '@libsql/client',
     '@ai-sdk/openai', '@ai-sdk/anthropic', 'ai', 'zod',
-    'drizzle-orm', 'ts-fsrs', 'hono',
+    'drizzle-orm', 'ts-fsrs',
   ],
   alias: {
     '@sour/llm-config': resolve(root, 'packages/llm-config/src'),
