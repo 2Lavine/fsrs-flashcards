@@ -1,8 +1,10 @@
+import { drizzle } from 'drizzle-orm/libsql';
 import { createClient } from '@libsql/client';
+import * as schema from '@fsrs/shared/schema';
 
 const client = createClient({
   url: process.env.TURSO_URL!,
   authToken: process.env.TURSO_AUTH_TOKEN!,
 });
 
-export default client;
+export const db = drizzle(client, { schema });

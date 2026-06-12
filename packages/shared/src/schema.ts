@@ -15,7 +15,6 @@ export const cards = sqliteTable('cards', {
   tags: text('tags').default('[]'),
   category: text('category').default(''),
   createdAt: text('created_at').notNull(),
-  // FSRS fields
   fsrsDue: text('fsrs_due').notNull(),
   fsrsStability: real('fsrs_stability').default(0),
   fsrsDifficulty: real('fsrs_difficulty').default(0),

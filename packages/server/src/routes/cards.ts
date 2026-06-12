@@ -1,135 +1,173 @@
 import { Hono } from 'hono';
-import { State, createEmptyCard } from 'ts-fsrs';
-import db from '../db';
-import { one, all, uid, getDueCardsRaw } from '../types';
+import { State } from 'ts-fsrs';
+import { eq, and, sql, not, inArray, like } from 'drizzle-orm';
+import { db } from '../db';
+import { cards, decks, reviewLogs, settings } from '@fsrs/shared/schema';
 
-const cards = new Hono();
+function uid() { return crypto.randomUUID(); }
 
-// ─── GET /due-cards ─────────────────────────
+const routes = new Hono();
 
-cards.get('/due-cards', async (c) => {
+// Due cards
+routes.get('/due-cards', async (c) => {
   const category = c.req.query('category');
   const deckId = c.req.query('deckId');
   const paused = c.req.query('paused')?.split(',').filter(Boolean);
-  const result = await getDueCardsRaw(category, paused, deckId);
-  return c.json({ cards: result });
-});
 
-// ─── GET /cards ─────────────────────────────
+  const conds = [sql`(${cards.fsrsState} = ${State.New} OR ${cards.fsrsDue} <= ${new Date().toISOString()})`];
+  if (category) conds.push(eq(cards.category, category));
+  if (deckId) conds.push(eq(cards.deckId, deckId));
+  if (paused?.length) conds.push(not(inArray(cards.category, paused)));
 
-cards.get('/cards', async (c) => {
-  const search = c.req.query('search');
-  const deckId = c.req.query('deckId');
-  const conds: string[] = [];
-  const args: string[] = [];
-  if (search) {
-    conds.push('(c.question LIKE ? OR c.answer LIKE ? OR c.tags LIKE ? OR d.name LIKE ?)');
-    const q = `%${search}%`;
-    args.push(q, q, q, q);
-  }
-  if (deckId) { conds.push('c.deck_id = ?'); args.push(deckId); }
-  const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-  const rows = await all(
-    `SELECT c.*, d.name as deck_name FROM cards c JOIN decks d ON c.deck_id = d.id ${where} ORDER BY c.fsrs_due ASC`,
-    args
-  );
+  const rows = await db
+    .select({
+      id: cards.id, deck_id: cards.deckId, deck_name: decks.name,
+      question: cards.question, answer: cards.answer,
+      tags: cards.tags, category: cards.category,
+      created_at: cards.createdAt,
+      fsrs_due: cards.fsrsDue, fsrs_stability: cards.fsrsStability,
+      fsrs_difficulty: cards.fsrsDifficulty, fsrs_elapsed_days: cards.fsrsElapsedDays,
+      fsrs_scheduled_days: cards.fsrsScheduledDays, fsrs_reps: cards.fsrsReps,
+      fsrs_lapses: cards.fsrsLapses, fsrs_state: cards.fsrsState,
+      fsrs_last_review: cards.fsrsLastReview, fsrs_learning_steps: cards.fsrsLearningSteps,
+    })
+    .from(cards)
+    .innerJoin(decks, eq(cards.deckId, decks.id))
+    .where(and(...conds))
+    .orderBy(cards.fsrsDue)
+    .all();
   return c.json({ cards: rows });
 });
 
-// ─── PUT /cards/:id ─────────────────────────
+// All cards
+routes.get('/cards', async (c) => {
+  const search = c.req.query('search');
+  const deckId = c.req.query('deckId');
+  const conds = [];
+  if (search) {
+    const q = `%${search}%`;
+    conds.push(sql`(${like(cards.question, q)} OR ${like(cards.answer, q)} OR ${like(cards.tags, q)} OR ${like(decks.name, q)})`);
+  }
+  if (deckId) conds.push(eq(cards.deckId, deckId));
 
-cards.put('/cards/:id', async (c) => {
+  const rows = await db
+    .select({
+      id: cards.id, deck_id: cards.deckId, deck_name: decks.name,
+      question: cards.question, answer: cards.answer,
+      tags: cards.tags, category: cards.category,
+      created_at: cards.createdAt,
+      fsrs_due: cards.fsrsDue, fsrs_stability: cards.fsrsStability,
+      fsrs_difficulty: cards.fsrsDifficulty, fsrs_elapsed_days: cards.fsrsElapsedDays,
+      fsrs_scheduled_days: cards.fsrsScheduledDays, fsrs_reps: cards.fsrsReps,
+      fsrs_lapses: cards.fsrsLapses, fsrs_state: cards.fsrsState,
+      fsrs_last_review: cards.fsrsLastReview, fsrs_learning_steps: cards.fsrsLearningSteps,
+    })
+    .from(cards)
+    .innerJoin(decks, eq(cards.deckId, decks.id))
+    .where(conds.length ? and(...conds) : undefined)
+    .orderBy(cards.fsrsDue)
+    .all();
+  return c.json({ cards: rows });
+});
+
+// Update card
+routes.put('/cards/:id', async (c) => {
   const id = c.req.param('id');
   const { question, answer } = await c.req.json<{ question: string; answer: string }>();
   if (!question || !answer) return c.json({ error: 'Missing question or answer' }, 400);
-  await db.execute('UPDATE cards SET question = ?, answer = ? WHERE id = ?', [question, answer, id]);
+  await db.update(cards).set({ question, answer }).where(eq(cards.id, id));
   return c.json({ ok: true });
 });
 
-// ─── DELETE /cards/:id ──────────────────────
-
-cards.delete('/cards/:id', async (c) => {
+// Delete card
+routes.delete('/cards/:id', async (c) => {
   const id = c.req.param('id');
-  await db.execute('DELETE FROM review_logs WHERE card_id = ?', [id]);
-  await db.execute('DELETE FROM cards WHERE id = ?', [id]);
+  await db.delete(reviewLogs).where(eq(reviewLogs.cardId, id));
+  await db.delete(cards).where(eq(cards.id, id));
   return c.json({ ok: true });
 });
 
-// ─── GET /decks ─────────────────────────────
-
-cards.get('/decks', async (c) => {
-  const rows = await all('SELECT id, name, source FROM decks ORDER BY name');
+// Decks
+routes.get('/decks', async (c) => {
+  const rows = await db.select({ id: decks.id, name: decks.name, source: decks.source })
+    .from(decks).orderBy(decks.name).all();
   return c.json({ decks: rows });
 });
 
-// ─── GET /categories ────────────────────────
-
-cards.get('/categories', async (c) => {
+// Categories
+routes.get('/categories', async (c) => {
   const deckId = c.req.query('deckId');
   const rows = deckId
-    ? await all("SELECT DISTINCT category FROM cards WHERE category != '' AND deck_id = ? ORDER BY category", [deckId])
-    : await all("SELECT DISTINCT category FROM cards WHERE category != '' ORDER BY category");
-  return c.json({ categories: rows.map(r => r['category'] as string) });
+    ? await db.selectDistinct({ name: cards.category }).from(cards)
+        .where(and(eq(cards.deckId, deckId), not(eq(cards.category, ''))))
+        .orderBy(cards.category).all()
+    : await db.selectDistinct({ name: cards.category }).from(cards)
+        .where(not(eq(cards.category, '')))
+        .orderBy(cards.category).all();
+  return c.json({ categories: rows.map(r => r.name) });
 });
 
-// ─── GET /paused ────────────────────────────
-
-cards.get('/paused', async (c) => {
-  const r = await one("SELECT value FROM settings WHERE key = 'paused_categories'");
-  try { return c.json({ paused: JSON.parse((r?.value as string) || '[]') }); } catch { return c.json({ paused: [] }); }
+// Paused categories
+routes.get('/paused', async (c) => {
+  const r = await db.select({ value: settings.value }).from(settings)
+    .where(eq(settings.key, 'paused_categories')).get();
+  try { return c.json({ paused: JSON.parse(r?.value || '[]') }); } catch { return c.json({ paused: [] }); }
 });
 
-// ─── POST /paused/:cat ──────────────────────
-
-cards.post('/paused/:cat', async (c) => {
+// Toggle pause
+routes.post('/paused/:cat', async (c) => {
   const cat = c.req.param('cat');
-  const r = await one("SELECT value FROM settings WHERE key = 'paused_categories'");
+  const r = await db.select({ value: settings.value }).from(settings)
+    .where(eq(settings.key, 'paused_categories')).get();
   let paused: string[] = [];
-  try { paused = JSON.parse((r?.value as string) || '[]'); } catch {}
+  try { paused = JSON.parse(r?.value || '[]'); } catch {}
   const idx = paused.indexOf(cat);
   if (idx >= 0) paused.splice(idx, 1); else paused.push(cat);
-  await db.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('paused_categories', ?)", [JSON.stringify(paused)]);
+  await db.insert(settings).values({ key: 'paused_categories', value: JSON.stringify(paused) })
+    .onConflictDoUpdate({ target: settings.key, set: { value: JSON.stringify(paused) } });
   return c.json({ ok: true });
 });
 
-// ─── DELETE /decks/:name ────────────────────
-
-cards.delete('/decks/:name', async (c) => {
+// Delete deck
+routes.delete('/decks/:name', async (c) => {
   const name = c.req.param('name');
-  const r = await db.execute('SELECT id FROM decks WHERE name = ?', [name]);
-  if (r.rows.length === 0) return c.json({ ok: true, deleted: 0 });
-  const deckId = r.rows[0].id as string;
-  await db.execute('DELETE FROM review_logs WHERE card_id IN (SELECT id FROM cards WHERE deck_id = ?)', [deckId]);
-  await db.execute('DELETE FROM cards WHERE deck_id = ?', [deckId]);
-  await db.execute('DELETE FROM decks WHERE id = ?', [deckId]);
+  const d = await db.select({ id: decks.id }).from(decks).where(eq(decks.name, name)).get();
+  if (!d) return c.json({ ok: true, deleted: 0 });
+  await db.delete(reviewLogs).where(eq(reviewLogs.cardId, sql`(SELECT id FROM cards WHERE deck_id = ${d.id})`));
+  await db.delete(cards).where(eq(cards.deckId, d.id));
+  await db.delete(decks).where(eq(decks.id, d.id));
   return c.json({ ok: true, deleted: 1 });
 });
 
-// ─── POST /import ───────────────────────────
-
-cards.post('/import', async (c) => {
-  const { deck, source, cards: cardList } = await c.req.json<{ deck: string; source?: string; cards: { question: string; answer: string; tags?: string[]; category?: string }[] }>();
+// Import — batch INSERT
+routes.post('/import', async (c) => {
+  const { deck, source, cards: cardList } = await c.req.json<{
+    deck: string; source?: string;
+    cards: { question: string; answer: string; tags?: string[]; category?: string }[];
+  }>();
   if (!deck || !cardList?.length) return c.json({ error: 'Need deck + cards' }, 400);
 
   const now = new Date().toISOString();
-  let deckRow = await one('SELECT id FROM decks WHERE name = ?', [deck]);
+  let d = await db.select({ id: decks.id }).from(decks).where(eq(decks.name, deck)).get();
   let deckId: string;
-  if (deckRow) {
-    deckId = deckRow.id as string;
+  if (d) {
+    deckId = d.id;
   } else {
     deckId = uid();
-    await db.execute('INSERT INTO decks (id, name, source, created_at) VALUES (?,?,?,?)', [deckId, deck, source || '', now]);
+    await db.insert(decks).values({ id: deckId, name: deck, source: source || '', createdAt: now });
   }
 
-  let n = 0;
-  for (const cd of cardList) {
-    const fsrs = createEmptyCard();
-    await db.execute(
-      'INSERT INTO cards (id,deck_id,question,answer,tags,category,created_at,fsrs_due,fsrs_stability,fsrs_difficulty,fsrs_elapsed_days,fsrs_scheduled_days,fsrs_reps,fsrs_lapses,fsrs_state,fsrs_last_review,fsrs_learning_steps) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-      [uid(), deckId, cd.question, cd.answer, JSON.stringify(cd.tags || []), cd.category || '', now, now, 0, 0, 0, 0, 0, 0, State.New, null, 0]);
-    n++;
-  }
-  return c.json({ ok: true, deck, imported: n });
+  await db.insert(cards).values(
+    cardList.map(cd => ({
+      id: uid(), deckId, question: cd.question, answer: cd.answer,
+      tags: JSON.stringify(cd.tags || []), category: cd.category || '', createdAt: now,
+      fsrsDue: now, fsrsStability: 0, fsrsDifficulty: 0,
+      fsrsElapsedDays: 0, fsrsScheduledDays: 0,
+      fsrsReps: 0, fsrsLapses: 0, fsrsState: State.New, fsrsLearningSteps: 0,
+    }))
+  );
+
+  return c.json({ ok: true, deck, imported: cardList.length });
 });
 
-export default cards;
+export default routes;

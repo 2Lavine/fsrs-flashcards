@@ -1,93 +1,115 @@
 import { Hono } from 'hono';
 import { State } from 'ts-fsrs';
-import { one, all } from '../types';
+import { eq, and, sql, not, inArray, count, gte, lt } from 'drizzle-orm';
+import { db } from '../db';
+import { cards, decks, reviewLogs, settings } from '@fsrs/shared/schema';
+
+function uid() { return crypto.randomUUID(); }
 
 const stats = new Hono();
 
-// ─── GET /health ────────────────────────────
-
 stats.get('/health', (c) => c.json({ ok: true }));
 
-// ─── GET /stats ─────────────────────────────
-
+// Stats — single query
 stats.get('/stats', async (c) => {
-  const now = new Date().toISOString();
-  const [total, due, nc, lr, review, tr, td, avg] = await Promise.all([
-    one('SELECT COUNT(*) as c FROM cards').then(r => (r?.c as number) ?? 0),
-    one(`SELECT COUNT(*) as c FROM cards WHERE fsrs_state = ${State.New} OR fsrs_due <= ?`, [now]).then(r => (r?.c as number) ?? 0),
-    one(`SELECT COUNT(*) as c FROM cards WHERE fsrs_state = ${State.New}`).then(r => (r?.c as number) ?? 0),
-    one(`SELECT COUNT(*) as c FROM cards WHERE fsrs_state IN (${State.Learning}, ${State.Relearning})`).then(r => (r?.c as number) ?? 0),
-    one(`SELECT COUNT(*) as c FROM cards WHERE fsrs_state = ${State.Review}`).then(r => (r?.c as number) ?? 0),
-    one('SELECT COUNT(*) as c FROM review_logs').then(r => (r?.c as number) ?? 0),
-    one("SELECT COUNT(*) as c FROM review_logs WHERE date(review) = date('now')").then(r => (r?.c as number) ?? 0),
-    one('SELECT AVG(fsrs_difficulty) as avg FROM cards WHERE fsrs_state != 0'),
-  ]);
-  return c.json({ total, due, new: nc, learning: lr, review, totalReviews: tr, today: td, avgDifficulty: avg?.avg != null ? (avg.avg as number).toFixed(2) : '-' });
+  const n = new Date().toISOString();
+  const today = n.slice(0, 10);
+  const tomorrow = new Date(new Date(today).getTime() + 86400000).toISOString().slice(0, 10);
+
+  const [r] = await db
+    .select({
+      total: count(cards.id),
+      due: sql<number>`SUM(CASE WHEN ${cards.fsrsState} = ${State.New} OR ${cards.fsrsDue} <= ${n} THEN 1 ELSE 0 END)`,
+      newCards: sql<number>`SUM(CASE WHEN ${cards.fsrsState} = ${State.New} THEN 1 ELSE 0 END)`,
+      learning: sql<number>`SUM(CASE WHEN ${cards.fsrsState} IN (${State.Learning}, ${State.Relearning}) THEN 1 ELSE 0 END)`,
+      review: sql<number>`SUM(CASE WHEN ${cards.fsrsState} = ${State.Review} THEN 1 ELSE 0 END)`,
+      totalReviews: sql<number>`(SELECT COUNT(*) FROM review_logs)`,
+      todayReviews: sql<number>`(SELECT COUNT(*) FROM review_logs WHERE review >= ${today} AND review < ${tomorrow})`,
+      avgDifficulty: sql<number>`(SELECT AVG(fsrs_difficulty) FROM cards WHERE fsrs_state != 0)`,
+    })
+    .from(cards);
+
+  return c.json({
+    total: r.total ?? 0, due: r.due ?? 0,
+    new: r.newCards ?? 0, learning: r.learning ?? 0, review: r.review ?? 0,
+    totalReviews: r.totalReviews ?? 0, today: r.todayReviews ?? 0,
+    avgDifficulty: r.avgDifficulty != null ? r.avgDifficulty.toFixed(2) : '-',
+  });
 });
 
-// ─── GET /streak ────────────────────────────
-
+// Streak
 stats.get('/streak', async (c) => {
-  const rows = await all("SELECT DISTINCT date(review) as d FROM review_logs ORDER BY d DESC LIMIT 365");
-  if (rows.length === 0) return c.json({ streak: 0 });
-
-  const dateSet = new Set(rows.map(r => r.d as string));
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  if (!dateSet.has(today) && !dateSet.has(yesterday)) return c.json({ streak: 0 });
-
-  let streak = 0;
-  const d = new Date(dateSet.has(today) ? today : yesterday);
-  while (dateSet.has(d.toISOString().slice(0, 10))) {
-    streak++;
-    d.setDate(d.getDate() - 1);
-  }
-  return c.json({ streak });
+  const rows = await db.all<{ streak: number }>(sql`
+    WITH RECURSIVE dates(d) AS (
+      SELECT date('now')
+      UNION ALL
+      SELECT date(d, '-1 day') FROM dates LIMIT 365
+    ),
+    daily AS (
+      SELECT substr(review, 1, 10) as day, COUNT(*) as c FROM review_logs GROUP BY day
+    )
+    SELECT COUNT(*) as streak
+    FROM dates LEFT JOIN daily ON dates.d = daily.day
+    WHERE daily.c > 0
+    AND dates.d > COALESCE(
+      (SELECT dates.d FROM dates LEFT JOIN daily ON dates.d = daily.day WHERE daily.c IS NULL ORDER BY dates.d DESC LIMIT 1),
+      date('now', '-365 day')
+    )
+  `);
+  return c.json({ streak: rows[0]?.streak ?? 0 });
 });
 
-// ─── GET /daily-counts ──────────────────────
-
+// Daily counts — GROUP BY
 stats.get('/daily-counts', async (c) => {
-  const days = 7;
-  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const start = new Date(); start.setDate(start.getDate() - 6);
+  const startStr = start.toISOString().slice(0, 10);
+  const rows = await db
+    .select({ day: sql<string>`substr(review, 1, 10)`, c: count() })
+    .from(reviewLogs)
+    .where(gte(reviewLogs.review, startStr))
+    .groupBy(sql`substr(review, 1, 10)`)
+    .orderBy(sql`day`)
+    .all();
+  const map = new Map<string, number>();
+  for (const r of rows) map.set(r.day, r.c);
+
+  const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const result: { label: string; count: number }[] = [];
-  const dateStrs: string[] = [];
-
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    dateStrs.push(d.toISOString().slice(0, 10));
-    result.push({ label: dayNames[d.getDay()], count: 0 });
-  }
-
-  const rows = await all(
-    "SELECT date(review) as d, COUNT(*) as c FROM review_logs WHERE date(review) >= ? GROUP BY d ORDER BY d",
-    [dateStrs[0]],
-  );
-  for (const row of rows) {
-    const idx = dateStrs.indexOf(row.d as string);
-    if (idx >= 0) result[idx].count = row.c as number;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start); d.setDate(d.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    result.push({ label: labels[d.getDay()], count: map.get(key) ?? 0 });
   }
   return c.json({ daily: result });
 });
 
-// ─── GET /category-counts ───────────────────
-
+// Category counts
 stats.get('/category-counts', async (c) => {
-  const rows = await all("SELECT category as name, COUNT(*) as count FROM cards WHERE category != '' GROUP BY category ORDER BY count DESC");
-  return c.json({ categories: rows.map(r => ({ name: r.name as string, count: r.count as number })) });
+  const rows = await db
+    .select({ name: cards.category, count: count() })
+    .from(cards)
+    .where(not(eq(cards.category, '')))
+    .groupBy(cards.category)
+    .orderBy(sql`count DESC`)
+    .all();
+  return c.json({ categories: rows });
 });
 
-// ─── GET /rating-counts ─────────────────────
-
+// Rating counts — GROUP BY
 stats.get('/rating-counts', async (c) => {
-  const labels = ['Again','Hard','Good','Easy'];
-  const rows = await all("SELECT rating, COUNT(*) as count FROM review_logs GROUP BY rating ORDER BY rating");
-  const ratings = labels.map((label, i) => {
-    const row = rows.find(r => (r.rating as number) === i + 1);
-    return { label, count: row ? (row.count as number) : 0 };
-  });
-  return c.json({ ratings });
+  const labels: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
+  const rows = await db
+    .select({ rating: reviewLogs.rating, c: count() })
+    .from(reviewLogs)
+    .groupBy(reviewLogs.rating)
+    .all();
+  const map = new Map<number, number>();
+  for (const r of rows) map.set(r.rating, r.c);
+  const result: { label: string; count: number }[] = [];
+  for (let i = 1; i <= 4; i++) {
+    result.push({ label: labels[i], count: map.get(i) ?? 0 });
+  }
+  return c.json({ ratings: result });
 });
 
 export default stats;

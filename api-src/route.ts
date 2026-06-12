@@ -2,9 +2,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { State, createEmptyCard } from 'ts-fsrs';
 import { createLLMProvider } from '@sour/llm-config';
 import { generateText } from 'ai';
-import { eq, and, sql, inArray, not, gte, lt, count, avg } from 'drizzle-orm';
+import { eq, and, sql, inArray, not, gte, lt, count, avg, like } from 'drizzle-orm';
+import { cards, decks, reviewLogs, settings } from '@fsrs/shared/schema';
 import { db } from './db';
-import { cards, decks, reviewLogs, settings } from './schema';
 
 function uid() { return crypto.randomUUID(); }
 const now = () => new Date().toISOString();
@@ -55,7 +55,7 @@ const routes: Record<string, Handler> = {
     const conds = [];
     if (search) {
       const q = `%${search}%`;
-      conds.push(sql`(${cards.question.like(q)} OR ${cards.answer.like(q)} OR ${cards.tags.like(q)} OR ${decks.name.like(q)})`);
+      conds.push(sql`(${like(cards.question, q)} OR ${like(cards.answer, q)} OR ${like(cards.tags, q)} OR ${like(decks.name, q)})`);
     }
     if (deckId) conds.push(eq(cards.deckId, String(deckId)));
 

@@ -14,5 +14,6 @@ await esbuild.build({
   external: ['@libsql/client', '@vercel/node'],
   alias: {
     '@sour/llm-config': resolve(root, 'packages/llm-config/src/index.ts'),
+    '@fsrs/shared/schema': resolve(root, 'packages/shared/src/schema.ts'),
   },
 });
