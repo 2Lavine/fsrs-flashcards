@@ -3,8 +3,10 @@
 
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 if [ "$current_branch" = "main" ]; then
+  # consume stdin so background process doesn't block push
+  cat > /dev/null
   echo ""
   echo "→ Pushing to main. Deploying to Vercel..."
   echo ""
-  pnpm deploy &
+  nohup pnpm deploy > /dev/null 2>&1 &
 fi
