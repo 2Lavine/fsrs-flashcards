@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
@@ -10,10 +10,10 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  build: { target: 'es2022', outDir: 'dist' },
-  server: {
-    proxy: {
-      '/api': 'http://localhost:3001',
-    },
+  test: {
+    globals: true,
+    environment: 'node',
+    include: ['src/__tests__/**/*.test.ts'],
+    setupFiles: ['src/test-setup.ts'],
   },
 });

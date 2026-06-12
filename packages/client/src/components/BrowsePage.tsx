@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { cardQuery, useStore } from '../store-instance';
 import type { Flashcard, Deck } from '@fsrs/shared';
-import { renderCloze, formatDate, stateLabel, stateClass } from '../format';
+import { renderCloze, formatDate, stateLabel } from '../format';
+import { openImportModal } from './ImportModal';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Input } from './ui/input';
 
 export const BrowsePage: React.FC = () => {
   const [search, setSearch] = useState('');
@@ -40,7 +44,8 @@ export const BrowsePage: React.FC = () => {
       if (!decksExport[c.deck]) decksExport[c.deck] = { source: '', cards: [] };
       decksExport[c.deck].cards.push({ question: c.question, answer: c.answer, tags: c.tags, category: c.category });
     }
-    for (const d of await cardQuery.getDecks()) {
+    const allDecks = await cardQuery.getDecks();
+    for (const d of allDecks) {
       if (decksExport[d.name]) decksExport[d.name].source = d.source;
     }
     const json = JSON.stringify({ decks: decksExport, exported: new Date().toISOString() }, null, 2);
@@ -52,59 +57,70 @@ export const BrowsePage: React.FC = () => {
   };
 
   return (
-    <>
-      <div className="toolbar">
-        <input type="text" className="search-input" placeholder="Search cards..." value={search} onChange={e => setSearch(e.target.value)} />
-        <select className="deck-filter" value={deckFilter} onChange={e => setDeckFilter(e.target.value)}>
+    <div className="flex flex-col gap-4">
+      {/* Toolbar */}
+      <div className="flex gap-2">
+        <Input
+          className="flex-1"
+          placeholder="Search cards..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <select
+          className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          value={deckFilter}
+          onChange={e => setDeckFilter(e.target.value)}
+        >
           <option value="">All Decks</option>
           {decks.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
-        <button className="btn primary" onClick={() => document.getElementById('import-modal')!.classList.add('active')}>Import</button>
-        <button className="btn" onClick={doExport}>Export</button>
+        <Button onClick={openImportModal}>Import</Button>
+        <Button variant="outline" onClick={doExport}>Export</Button>
       </div>
 
+      {/* Deck List */}
       {decks.length > 0 && (
-        <div className="deck-list">
+        <div className="flex flex-wrap gap-3">
           {decks.map(d => {
             const count = cards.filter(c => c.deckId === d.id).length;
             return (
-              <span key={d.id} className="deck-item">
-                <span className="deck-name">{d.name}</span>
-                <span className="deck-count">{count} cards</span>
-                <button className="btn small danger" onClick={() => doDeleteDeck(d.name, count)}>Delete Deck</button>
-              </span>
+              <div key={d.id} className="flex items-center gap-2 text-sm border rounded-lg px-3 py-1.5">
+                <span className="font-medium">{d.name}</span>
+                <span className="text-muted-foreground text-xs">{count} cards</span>
+                <Button variant="ghost" size="sm" className="text-destructive h-auto px-1 py-0" onClick={() => doDeleteDeck(d.name, count)}>Delete Deck</Button>
+              </div>
             );
           })}
         </div>
       )}
 
+      {/* Empty State */}
       {cards.length === 0 ? (
-        <div className="empty-state" style={{ display: 'flex' }}>
-          <div className="icon">📭</div><div>No cards yet</div>
-          <button className="btn primary" onClick={() => document.getElementById('import-modal')!.classList.add('active')}>Import Cards</button>
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+          <span className="text-4xl opacity-20">📭</span>
+          <span>No cards yet</span>
+          <Button onClick={openImportModal}>Import Cards</Button>
         </div>
       ) : (
-        <div className="card-list">
+        <div className="flex flex-col gap-2">
           {cards.map(c => (
-            <div key={c.id} className="card-item">
-              <div className="info">
-                <div className="q" dangerouslySetInnerHTML={{ __html: renderCloze(c.question, true) }} />
-                <div className="a">{c.answer}</div>
-                <div className="meta">
-                  <span>{c.deck}</span>
-                  <span className={`state-badge ${stateClass(c.fsrs.state)}`}>{stateLabel(c.fsrs.state)}</span>
-                  <span>Due: {formatDate(c.fsrs.due)}</span>
-                  {c.category && <span className="tag">{c.category}</span>}
-                  {c.tags.map(t => <span key={t} className="tag">{t}</span>)}
+            <div key={c.id} className="flex items-start justify-between border rounded-lg p-4 gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: renderCloze(c.question, true) }} />
+                <div className="text-sm text-muted-foreground mt-1">{c.answer}</div>
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <span className="text-xs text-muted-foreground">{c.deck}</span>
+                  <Badge variant="outline" className="text-xs">{stateLabel(c.fsrs.state)}</Badge>
+                  <span className="text-xs text-muted-foreground">Due: {formatDate(c.fsrs.due)}</span>
+                  {c.category && <Badge variant="secondary" className="text-xs">{c.category}</Badge>}
+                  {c.tags.map(t => <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>)}
                 </div>
               </div>
-              <div className="actions">
-                <button className="btn small danger" onClick={() => doDelete(c.id)}>Delete</button>
-              </div>
+              <Button variant="ghost" size="sm" className="text-destructive shrink-0" onClick={() => doDelete(c.id)}>Delete</Button>
             </div>
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 };

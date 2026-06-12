@@ -89,30 +89,55 @@ export const LLMSettingsForm: React.FC<Props> = ({ storage, fetchModels: propFet
     }
   };
 
+  const inputClasses =
+    'flex h-10 w-full rounded-lg border bg-background px-4 py-2.5 text-sm font-mono placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring focus:border-transparent';
+
+  const selectClasses =
+    'flex h-10 w-full rounded-lg border bg-background px-4 py-2.5 pr-8 text-sm appearance-none outline-none focus:ring-2 focus:ring-ring focus:border-transparent';
+
+  const tabClasses = (active: boolean) =>
+    `px-3 py-1.5 text-xs rounded-md border transition-colors ${
+      active
+        ? 'bg-accent text-accent-foreground border-border'
+        : 'bg-background text-muted-foreground border-transparent hover:text-foreground hover:border-border'
+    }`;
+
   return (
-    <div className="llm-settings">
+    <div className="flex flex-col gap-4">
       {/* Config tabs */}
-      <div className="llm-tabs">
+      <div className="flex flex-wrap gap-1">
         {configs.map((c, i) => (
           <button
             key={i}
-            className={`btn small ${i === editingIdx ? 'active' : ''}`}
+            type="button"
+            className={tabClasses(i === editingIdx)}
             onClick={() => { setEditingIdx(i); setModels([]); }}
           >
             {c.baseURL ? new URL(c.baseURL).hostname : `Config ${i + 1}`}
             {configs.length > 1 && (
-              <span className="llm-tab-remove" onClick={e => { e.stopPropagation(); handleRemove(i); }}>×</span>
+              <span
+                className="ml-1 opacity-40 hover:opacity-100 text-xs"
+                onClick={e => { e.stopPropagation(); handleRemove(i); }}
+              >
+                ×
+              </span>
             )}
           </button>
         ))}
-        <button className="btn small" onClick={handleAdd}>+ Add</button>
+        <button
+          type="button"
+          className="px-3 py-1.5 text-xs rounded-md border border-transparent bg-background text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+          onClick={handleAdd}
+        >
+          + Add
+        </button>
       </div>
 
-      {/* Editable fields */}
-      <label>
-        <span>API Format</span>
+      {/* API Format */}
+      <label className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground">API Format</span>
         <select
-          className="select-input"
+          className={selectClasses}
           value={cfg.apiFormat}
           onChange={e => { update({ apiFormat: e.target.value as ApiFormat }); setModels([]); }}
         >
@@ -121,32 +146,37 @@ export const LLMSettingsForm: React.FC<Props> = ({ storage, fetchModels: propFet
         </select>
       </label>
 
-      <label>
-        <span>API Base URL</span>
+      {/* Base URL */}
+      <label className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground">API Base URL</span>
         <input
           type="text"
+          className={inputClasses}
           value={cfg.baseURL}
           onChange={e => update({ baseURL: e.target.value })}
           placeholder={cfg.apiFormat === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com'}
         />
       </label>
 
-      <label>
-        <span>API Key</span>
+      {/* API Key */}
+      <label className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground">API Key</span>
         <input
           type="password"
+          className={inputClasses}
           value={cfg.apiKey}
           onChange={e => update({ apiKey: e.target.value })}
           placeholder={cfg.apiFormat === 'openai' ? 'sk-...' : 'sk-ant-...'}
         />
       </label>
 
-      <label>
-        <span>Model</span>
-        <div className="model-row">
+      {/* Model */}
+      <label className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground">Model</span>
+        <div className="flex gap-2">
           {models.length > 0 ? (
             <select
-              className="select-input"
+              className={selectClasses + ' flex-1'}
               value={cfg.model}
               onChange={e => update({ model: e.target.value })}
             >
@@ -155,32 +185,36 @@ export const LLMSettingsForm: React.FC<Props> = ({ storage, fetchModels: propFet
           ) : (
             <input
               type="text"
+              className={inputClasses + ' flex-1'}
               value={cfg.model}
               onChange={e => update({ model: e.target.value })}
               placeholder="gpt-4o-mini"
             />
           )}
           <button
-            className="btn small"
+            type="button"
+            className="px-3 py-1.5 text-xs rounded-md border bg-background text-muted-foreground hover:text-foreground hover:border-border transition-colors disabled:opacity-50"
             onClick={handleFetchModels}
             disabled={fetching}
           >
             {fetching ? '...' : 'Fetch'}
           </button>
         </div>
-        {fetchError && <span className="llm-status error">{fetchError}</span>}
+        {fetchError && <span className="text-xs font-medium text-destructive">{fetchError}</span>}
       </label>
 
+      {/* Save */}
       <button
-        className="btn primary"
+        type="button"
+        className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground font-semibold px-6 py-2.5 text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
         onClick={handleSave}
         disabled={status === 'loading'}
       >
         {status === 'loading' ? 'Saving...' : 'Save'}
       </button>
 
-      {status === 'saved' && <span className="llm-status success">Saved</span>}
-      {status === 'error' && <span className="llm-status error">{errorMsg}</span>}
+      {status === 'saved' && <span className="text-xs font-medium text-emerald-600">Saved</span>}
+      {status === 'error' && <span className="text-xs font-medium text-destructive">{errorMsg}</span>}
     </div>
   );
 };

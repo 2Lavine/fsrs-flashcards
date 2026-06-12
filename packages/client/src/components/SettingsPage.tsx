@@ -5,19 +5,12 @@ import { api } from '../db';
 
 export const SettingsPage: React.FC = () => {
   return (
-    <>
-      <h2 style={{
-        fontFamily: 'var(--font-display)',
-        fontSize: '1.1rem',
-        fontWeight: 600,
-        fontStyle: 'italic',
-        color: 'var(--accent)',
-        marginBottom: 8,
-      }}>LLM Settings</h2>
+    <div className="flex flex-col gap-6">
+      <h2 className="text-lg font-semibold italic">LLM Settings</h2>
       <LLMSettingsForm
         storage={llmStorage}
         fetchModels={(params) => api.fetchModels(params)}
       />
-    </>
+    </div>
   );
 };

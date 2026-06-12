@@ -1,5 +1,21 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../store-instance';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from './ui/dialog';
+import { Button } from './ui/button';
+import { Textarea } from './ui/textarea';
+
+let openFn: (() => void) | null = null;
+
+/** Call this to open the ImportModal from anywhere */
+export function openImportModal() {
+  openFn?.();
+}
 
 interface Props {
   onToast: (msg: string) => void;
@@ -7,43 +23,51 @@ interface Props {
 
 export const ImportModal: React.FC<Props> = ({ onToast }) => {
   const [json, setJson] = useState('');
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
   const importCards = useStore(s => s.importCards);
+
+  useEffect(() => {
+    openFn = () => setOpen(true);
+    return () => { openFn = null; };
+  }, []);
 
   const doImport = async () => {
     if (!json.trim()) return;
     try {
       const data = JSON.parse(json);
       if (!data.cards || !Array.isArray(data.cards)) {
-        onToast('Invalid format: expected "cards" array');
+        onToast?.('Invalid format: expected "cards" array');
         return;
       }
       const count = await importCards(data.deck || 'Default', data.source || '', data.cards);
       setJson('');
-      overlayRef.current?.classList.remove('active');
-      onToast(`Imported ${count} cards to "${data.deck || 'Default'}"`);
+      setOpen(false);
+      onToast?.(`Imported ${count} cards to "${data.deck || 'Default'}"`);
     } catch (e) {
-      onToast('Invalid JSON: ' + (e as Error).message);
+      onToast?.('Invalid JSON: ' + (e as Error).message);
     }
   };
 
   return (
-    <div className="modal-overlay" id="import-modal" ref={overlayRef} onClick={e => { if (e.target === overlayRef.current) overlayRef.current.classList.remove('active'); }}>
-      <div className="modal">
-        <h2>Import Cards</h2>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text2)' }}>
-          Paste JSON output from Claude (with "deck", "source", and "cards" fields).
-        </p>
-        <textarea
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Import Cards</DialogTitle>
+          <DialogDescription>
+            Paste JSON output from Claude (with "deck", "source", and "cards" fields).
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
           value={json}
           onChange={e => setJson(e.target.value)}
           placeholder='{"deck": "My Deck", "source": "...", "cards": [...]}'
+          className="min-h-[180px] font-mono text-sm"
         />
-        <div className="actions">
-          <button className="btn" onClick={() => overlayRef.current?.classList.remove('active')}>Cancel</button>
-          <button className="btn primary" onClick={doImport}>Import</button>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={doImport}>Import</Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

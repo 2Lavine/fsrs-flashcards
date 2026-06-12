@@ -6,8 +6,11 @@
   <title>FSRS Flashcards</title>
 </head>
 <body>
-  <div id="root">
-    <div class="loading"><div class="spinner"></div>Loading database...</div>
+  <div id="root" class="flex items-center justify-center min-h-screen text-muted-foreground">
+    <div class="flex items-center gap-3 text-sm">
+      <div class="w-4 h-4 border-2 border-border border-t-primary rounded-full animate-spin"></div>
+      Loading...
+    </div>
   </div>
   <script type="module" src="/src/main.tsx"></script>
 </body>

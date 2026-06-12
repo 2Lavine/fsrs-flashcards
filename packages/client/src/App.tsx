@@ -4,53 +4,96 @@ import { BrowsePage } from './components/BrowsePage';
 import { StatsPage } from './components/StatsPage';
 import { SettingsPage } from './components/SettingsPage';
 import { AiCardsPage } from './components/AiCardsPage';
-import { TaskPanel } from './components/TaskPanel';
 import { ImportModal } from './components/ImportModal';
 import { useToast } from './hooks/useToast';
+import { useTaskQueue } from './services/task-queue';
+import { AiCardList } from './components/AiCardList';
+import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from './components/ui/sidebar';
+import { TooltipProvider } from './components/ui/tooltip';
+import { BookOpen, Library, Sparkles, BarChart3, Settings } from 'lucide-react';
 
 type Page = 'review' | 'browse' | 'aicards' | 'stats' | 'settings';
+
+const pages: { key: Page; label: string; icon: React.ElementType }[] = [
+  { key: 'review', label: 'Review', icon: BookOpen },
+  { key: 'browse', label: 'Cards', icon: Library },
+  { key: 'aicards', label: 'AI Cards', icon: Sparkles },
+  { key: 'stats', label: 'Stats', icon: BarChart3 },
+  { key: 'settings', label: 'Settings', icon: Settings },
+];
 
 export const App: React.FC = () => {
   const [page, setPage] = React.useState<Page>('review');
   const { toasts, toast } = useToast();
+  const taskCount = useTaskQueue(s => s.tasks.length);
 
   return (
-    <>
-      <header>
-        <h1>FSRS Flashcards</h1>
-        <nav>
-          {(['review', 'browse', 'aicards', 'stats', 'settings'] as Page[]).map(p => (
-            <button key={p} className={page === p ? 'active' : ''} onClick={() => setPage(p)}>
-              {p === 'review' ? 'Review' : p === 'browse' ? 'Cards' : p === 'aicards' ? 'AI Cards' : p === 'stats' ? 'Stats' : 'Settings'}
-            </button>
-          ))}
-        </nav>
-      </header>
+    <TooltipProvider>
+      <SidebarProvider>
+        <div className="flex h-screen w-full">
+          {/* Left Sidebar - Navigation */}
+          <Sidebar side="left">
+            <SidebarContent>
+              <SidebarGroup>
+                <SidebarGroupLabel className="text-base font-semibold italic py-3">
+                  FSRS Flashcards
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {pages.map(p => (
+                      <SidebarMenuItem key={p.key}>
+                        <SidebarMenuButton
+                          isActive={page === p.key}
+                          onClick={() => setPage(p.key)}
+                          tooltip={p.label}
+                        >
+                          <p.icon />
+                          <span>{p.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarContent>
+          </Sidebar>
 
-      <main>
-        <div className={`page ${page === 'review' ? 'active' : ''}`} id="page-review">
-          {page === 'review' && <ReviewPage />}
-        </div>
-        <div className={`page ${page === 'browse' ? 'active' : ''}`} id="page-browse">
-          {page === 'browse' && <BrowsePage />}
-        </div>
-        <div className={`page ${page === 'aicards' ? 'active' : ''}`} id="page-aicards">
-          {page === 'aicards' && <AiCardsPage />}
-        </div>
-        <div className={`page ${page === 'stats' ? 'active' : ''}`} id="page-stats">
-          {page === 'stats' && <StatsPage />}
-        </div>
-        <div className={`page ${page === 'settings' ? 'active' : ''}`} id="page-settings">
-          {page === 'settings' && <SettingsPage />}
-        </div>
-      </main>
+          {/* Center - Main Content */}
+          <main className="flex-1 flex flex-col min-w-0">
+            <div className="flex items-center gap-2 px-4 py-3 border-b shrink-0">
+              <SidebarTrigger />
+              <span className="text-sm font-medium text-muted-foreground">
+                {pages.find(p => p.key === page)?.label}
+              </span>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-6 max-w-3xl mx-auto w-full">
+              {page === 'review' && <ReviewPage />}
+              {page === 'browse' && <BrowsePage />}
+              {page === 'aicards' && <AiCardsPage />}
+              {page === 'stats' && <StatsPage />}
+              {page === 'settings' && <SettingsPage />}
+            </div>
+          </main>
 
-      <ImportModal onToast={toast} />
-      <TaskPanel />
+          {/* Right Sidebar - AI Tasks */}
+          <aside className="w-80 border-l shrink-0 hidden lg:flex flex-col bg-sidebar">
+            <div className="px-4 py-3 border-b shrink-0">
+              <h3 className="text-sm font-semibold">AI Tasks{taskCount > 0 ? ` (${taskCount})` : ''}</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <AiCardList />
+            </div>
+          </aside>
+        </div>
 
-      <div className="toast" id="toast" style={{ opacity: toasts.length > 0 ? 1 : 0 }}>
-        {toasts[toasts.length - 1]?.msg ?? ''}
-      </div>
-    </>
+        <ImportModal onToast={toast} />
+
+        {toasts.length > 0 && (
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-popover border rounded-lg px-6 py-2.5 text-sm font-medium shadow-lg z-[200]">
+            {toasts[toasts.length - 1]?.msg ?? ''}
+          </div>
+        )}
+      </SidebarProvider>
+    </TooltipProvider>
   );
 };

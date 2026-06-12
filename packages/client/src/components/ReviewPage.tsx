@@ -10,6 +10,17 @@ import { useHistory } from '../hooks/useHistory';
 import { cardPresets } from '../services/preset-loader';
 import { llmStorage } from '../services/llm-storage';
 import { useTaskQueue } from '../services/task-queue';
+import { openImportModal } from './ImportModal';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Textarea } from './ui/textarea';
+
+const ratingStyles: Record<number, string> = {
+  [Rating.Again]: 'border-red-500/30 hover:border-red-500 hover:bg-red-500/10 hover:text-red-400',
+  [Rating.Hard]: 'border-amber-500/30 hover:border-amber-500 hover:bg-amber-500/10 hover:text-amber-400',
+  [Rating.Good]: 'border-emerald-500/30 hover:border-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-400',
+  [Rating.Easy]: 'border-sky-500/30 hover:border-sky-500 hover:bg-sky-500/10 hover:text-sky-400',
+};
 
 export const ReviewPage: React.FC = () => {
   const [category, setCategory] = useState('');
@@ -24,8 +35,8 @@ export const ReviewPage: React.FC = () => {
   const [customOpen, setCustomOpen] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
 
-  // Async data
-  const [stats, setStats] = useState<ReturnType<typeof cardQuery.getStats> extends Promise<infer T> ? T : never>({ total: 0, due: 0, new: 0, learning: 0, review: 0, totalReviews: 0, today: 0, avgDifficulty: '-' });
+  type StatsData = { total: number; due: number; new: number; learning: number; review: number; totalReviews: number; today: number; avgDifficulty: string };
+  const [stats, setStats] = useState<StatsData>({ total: 0, due: 0, new: 0, learning: 0, review: 0, totalReviews: 0, today: 0, avgDifficulty: '-' });
   const [decks, setDecks] = useState<{ id: string; name: string }[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [pausedCategories, setPausedCategories] = useState<string[]>([]);
@@ -34,7 +45,6 @@ export const ReviewPage: React.FC = () => {
   const version = useStore(s => s.version);
   const bump = useStore(s => s.bump);
 
-  // Load data when version changes
   useEffect(() => {
     cardQuery.getStats().then(setStats);
     cardQuery.getDecks().then(setDecks);
@@ -48,7 +58,6 @@ export const ReviewPage: React.FC = () => {
     });
   }, [version, deckId]);
 
-  // Fetch due cards when version/category/deck changes
   useEffect(() => {
     cardQuery.getDueCards(category || undefined, pausedCategories, deckId || undefined).then(cards => {
       setDueCards(cards);
@@ -60,7 +69,6 @@ export const ReviewPage: React.FC = () => {
     });
   }, [version, category, deckId]);
 
-  // Advance to next card locally — no API call
   const advance = useCallback((afterCards?: Flashcard[]) => {
     const queue = afterCards ?? dueCards.slice(1);
     setDueCards(queue);
@@ -91,8 +99,7 @@ export const ReviewPage: React.FC = () => {
 
   const handleDelete = useCallback(async () => {
     if (!card) return;
-    cardMutation.deleteCard(card.id); // fire-and-forget
-    // Advance locally
+    cardMutation.deleteCard(card.id);
     setCard(null); setPreviewCache(null); setRevealed(false);
     cardQuery.getDueCards(category || undefined, pausedCategories, deckId || undefined).then(cards => {
       const next = cards[0] ?? null;
@@ -133,7 +140,6 @@ export const ReviewPage: React.FC = () => {
     setCustomPrompt('');
   };
 
-  // Refs for keyboard
   const cardRef = useRef(card); cardRef.current = card;
   const revealedRef = useRef(revealed); revealedRef.current = revealed;
   const historyRef = useRef(history); historyRef.current = history;
@@ -152,103 +158,142 @@ export const ReviewPage: React.FC = () => {
   const togglePause = (cat: string) => { useStore.getState().togglePauseCategory(cat); };
 
   return (
-    <>
-      <div className="stats-bar">
-        <div className="stat"><div className="num due">{stats.due}</div><div className="lbl">Due</div></div>
-        <div className="stat"><div className="num">{stats.new}</div><div className="lbl">New</div></div>
-        <div className="stat"><div className="num">{stats.learning}</div><div className="lbl">Learning</div></div>
-        <div className="stat"><div className="num">{stats.review}</div><div className="lbl">Review</div></div>
-        <div className="stat"><div className="num accent">{stats.today}</div><div className="lbl">Today</div></div>
-        <div className="stat"><div className="num">{stats.total}</div><div className="lbl">Total</div></div>
+    <div className="flex flex-col gap-6">
+      {/* Stats Bar */}
+      <div className="flex justify-between text-center">
+        {[
+          { num: stats.due, lbl: 'Due', cls: 'text-amber-400' },
+          { num: stats.new, lbl: 'New' },
+          { num: stats.learning, lbl: 'Learning' },
+          { num: stats.review, lbl: 'Review' },
+          { num: stats.today, lbl: 'Today' },
+          { num: stats.total, lbl: 'Total' },
+        ].map(s => (
+          <div key={s.lbl} className="flex flex-col items-center gap-0.5">
+            <span className={`text-xl font-bold tabular-nums ${s.cls ?? ''}`}>{s.num}</span>
+            <span className="text-xs text-muted-foreground">{s.lbl}</span>
+          </div>
+        ))}
       </div>
 
+      {/* Deck Filter */}
       {decks.length > 1 && (
-        <div className="category-filter">
-          <span className={`category-chip ${deckId === '' ? 'active' : ''}`} onClick={() => { setDeckId(''); setShowAllCats(false); }}>All Decks</span>
-          {decks.map(d => <span key={d.id} className={`category-chip ${deckId === d.id ? 'active' : ''}`} onClick={() => { setDeckId(d.id); setShowAllCats(false); }}>{d.name}</span>)}
+        <div className="flex flex-wrap gap-1.5">
+          <Badge variant={deckId === '' ? 'default' : 'outline'} className="cursor-pointer" onClick={() => { setDeckId(''); setShowAllCats(false); }}>All Decks</Badge>
+          {decks.map(d => (
+            <Badge key={d.id} variant={deckId === d.id ? 'default' : 'outline'} className="cursor-pointer" onClick={() => { setDeckId(d.id); setShowAllCats(false); }}>{d.name}</Badge>
+          ))}
         </div>
       )}
 
+      {/* Category Filter */}
       {categories.length > 0 && (
-        <div className="category-filter">
-          <span className={`category-chip ${category === '' ? 'active' : ''}`} onClick={() => setCategory('')}>All</span>
-          {(showAllCats ? categories : categories.slice(0, 8)).map(c => (
-            <span key={c} className={`category-chip ${category === c ? 'active' : ''} ${pausedCategories.includes(c) ? 'paused' : ''}`}>
-              <span onClick={() => setCategory(c)}>{c}</span>
-              <span className="pause-toggle" onClick={e => { e.stopPropagation(); togglePause(c); }}>{pausedCategories.includes(c) ? '▶' : '⏸'}</span>
-            </span>
-          ))}
+        <div className="flex flex-wrap gap-1.5">
+          <Badge variant={category === '' ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setCategory('')}>All</Badge>
+          {(showAllCats ? categories : categories.slice(0, 8)).map(c => {
+            const paused = pausedCategories.includes(c);
+            return (
+              <Badge
+                key={c}
+                variant={category === c ? 'default' : 'outline'}
+                className={`cursor-pointer ${paused ? 'opacity-50 line-through' : ''}`}
+              >
+                <span onClick={() => setCategory(c)}>{c}</span>
+                <span className="ml-1.5 text-xs opacity-60 hover:opacity-100" onClick={e => { e.stopPropagation(); togglePause(c); }}>
+                  {paused ? '▶' : '⏸'}
+                </span>
+              </Badge>
+            );
+          })}
           {categories.length > 8 && (
-            <span className="category-chip" onClick={() => setShowAllCats(!showAllCats)}>
+            <Badge variant="outline" className="cursor-pointer" onClick={() => setShowAllCats(!showAllCats)}>
               {showAllCats ? '收起' : `+${categories.length - 8} more`}
-            </span>
+            </Badge>
           )}
         </div>
       )}
 
-      <div className="card-stage">
-        <div className="review-actions">
-          {history.length > 0 && <button className="btn small" onClick={handleUndo} title="Undo (A or Ctrl+Z)">Undo</button>}
+      {/* Card Stage */}
+      <div className="flex flex-col gap-4">
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-2">
+          {history.length > 0 && <Button variant="outline" size="sm" onClick={handleUndo}>Undo</Button>}
           {cardPresets.map((p, i) => (
-            <button key={p.key} className="btn small" onClick={() => handleAi(i)}>
-              {p.label}
-            </button>
+            <Button key={p.key} variant="outline" size="sm" onClick={() => handleAi(i)}>{p.label}</Button>
           ))}
-          <button className="btn small" onClick={() => setCustomOpen(!customOpen)}>Custom</button>
-          <button className="btn small danger" onClick={handleDelete} title="Delete (D)">Delete</button>
+          <Button variant="outline" size="sm" onClick={() => setCustomOpen(!customOpen)}>Custom</Button>
+          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={handleDelete}>Delete</Button>
         </div>
 
+        {/* Custom Prompt */}
         {customOpen && card && (
-          <div className="custom-prompt">
-            <textarea
+          <div className="flex flex-col gap-2">
+            <Textarea
               placeholder={`Describe how to rewrite this card...\nUse {question} and {answer} as placeholders.\nOutput JSON: {"cards":[{"question":"...","answer":"...","category":"..."}]}`}
               value={customPrompt}
               onChange={e => setCustomPrompt(e.target.value)}
               rows={4}
             />
-            <div className="custom-prompt-actions">
-              <button className="btn small primary" onClick={handleCustomAi} disabled={!customPrompt.trim()}>Generate</button>
-              <button className="btn small" onClick={() => { setCustomOpen(false); setCustomPrompt(''); }}>Cancel</button>
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" onClick={handleCustomAi} disabled={!customPrompt.trim()}>Generate</Button>
+              <Button variant="outline" size="sm" onClick={() => { setCustomOpen(false); setCustomPrompt(''); }}>Cancel</Button>
             </div>
           </div>
         )}
 
+        {/* Card Display */}
         {!card ? (
           stats.total === 0 ? (
-            <div className="empty-state">
-              <div className="icon">📝</div>
-              <div>No cards yet</div>
-              <button className="btn primary" onClick={() => document.getElementById('import-modal')!.classList.add('active')}>Import Cards</button>
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+              <span className="text-4xl opacity-20">📝</span>
+              <span>No cards yet</span>
+              <Button onClick={openImportModal}>Import Cards</Button>
             </div>
           ) : (
-            <div className="empty-state"><div className="icon">🎉</div><div>All caught up!</div></div>
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+              <span className="text-4xl opacity-20">🎉</span>
+              <span>All caught up!</span>
+            </div>
           )
         ) : (
           <>
-            <div className={`flashcard ${revealed ? 'revealed' : ''}`} onClick={() => !revealed && setRevealed(true)}>
-              {!revealed && <div className="hint">Tap or Space to reveal</div>}
-              {card.deck && <div className="deck-tag">{card.deck}</div>}
-              {card.category && <div className="deck-tag" style={{ right: 'auto', left: 18, top: 16 }}>{card.category}</div>}
-              <div dangerouslySetInnerHTML={{ __html: renderCloze(card.question, revealed) }} />
-              {revealed && <div className="answer-divider" dangerouslySetInnerHTML={{ __html: renderCloze(card.answer, true) }} />}
+            <div
+              className="relative border rounded-lg p-8 pt-10 pb-12 min-h-[200px] cursor-pointer"
+              onClick={() => !revealed && setRevealed(true)}
+            >
+              {!revealed && <div className="text-xs text-muted-foreground absolute top-3 left-1/2 -translate-x-1/2">Tap or Space to reveal</div>}
+              {card.deck && <span className="absolute top-3 right-4 text-xs text-muted-foreground">{card.deck}</span>}
+              {card.category && <span className="absolute top-3 left-4 text-xs text-muted-foreground">{card.category}</span>}
+              <div className="text-lg leading-relaxed" dangerouslySetInnerHTML={{ __html: renderCloze(card.question, revealed) }} />
+              {revealed && (
+                <div className="mt-6 pt-6 border-t text-base leading-relaxed text-muted-foreground" dangerouslySetInnerHTML={{ __html: renderCloze(card.answer, true) }} />
+              )}
             </div>
+
             {revealed && previewCache && (
-              <div className="ratings">
+              <div className="grid grid-cols-4 gap-2">
                 {[
-                  { key: Rating.Again, cls: 'again', label: ratingLabel(1), hint: '1', desc: formatDate(previewCache[1]?.card.due) },
-                  { key: Rating.Hard, cls: 'hard', label: ratingLabel(2), hint: '2', desc: formatDate(previewCache[2]?.card.due) },
-                  { key: Rating.Good, cls: 'good', label: ratingLabel(3), hint: '3', desc: formatDate(previewCache[3]?.card.due) },
-                  { key: Rating.Easy, cls: 'easy', label: ratingLabel(4), hint: '4', desc: formatDate(previewCache[4]?.card.due) },
+                  { key: Rating.Again, cls: 'again', label: ratingLabel(1), hint: '1', desc: formatDate(previewCache[1]?.card.due), style: ratingStyles[Rating.Again] },
+                  { key: Rating.Hard, cls: 'hard', label: ratingLabel(2), hint: '2', desc: formatDate(previewCache[2]?.card.due), style: ratingStyles[Rating.Hard] },
+                  { key: Rating.Good, cls: 'good', label: ratingLabel(3), hint: '3', desc: formatDate(previewCache[3]?.card.due), style: ratingStyles[Rating.Good] },
+                  { key: Rating.Easy, cls: 'easy', label: ratingLabel(4), hint: '4', desc: formatDate(previewCache[4]?.card.due), style: ratingStyles[Rating.Easy] },
                 ].map(r => (
-                  <button key={r.key} className={`${r.cls} ${highlighted === r.key ? 'highlighted' : ''}`} onClick={() => handleRate(r.key as Grade)}>
-                    <span className="key-hint">{r.hint}</span>{r.label}<span className="days">{r.desc}</span>
-                  </button>
+                  <Button
+                    key={r.key}
+                    variant="outline"
+                    className={`flex-col h-auto py-3 px-2 gap-0.5 ${r.style} ${highlighted === r.key ? 'ring-2 ring-ring' : ''}`}
+                    onClick={() => handleRate(r.key as Grade)}
+                  >
+                    <span className="text-xs opacity-50">{r.hint}</span>
+                    <span className="font-semibold text-sm">{r.label}</span>
+                    <span className="text-xs opacity-50">{r.desc}</span>
+                  </Button>
                 ))}
               </div>
             )}
           </>
         )}
       </div>
-    </>
+    </div>
   );
 };
