@@ -1,5 +1,0 @@
-{"file": "docs/planning/us-19-select-alignment.md", "reason": "User story — replace native select with shadcn Select in BrowsePage"}
-{"file": ".trellis/spec/client/frontend/index.md", "reason": "Frontend conventions for the Browse page Select change"}
-{"file": ".trellis/spec/guides/index.md", "reason": "Index of all thinking guides"}
-{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify the Select component renders correctly across deck state"}
-{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Reuse the existing ui/select component; do not duplicate"}

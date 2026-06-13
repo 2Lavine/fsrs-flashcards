@@ -1,8 +1,0 @@
-{"file": "docs/planning/us-15-source-markdown.md", "reason": "Acceptance criteria to verify against"}
-{"file": ".trellis/spec/client/frontend/index.md", "reason": "Check the new MD component matches frontend conventions"}
-{"file": ".trellis/spec/server/frontend/index.md", "reason": "Check the /import size check is in the right place"}
-{"file": ".trellis/spec/guides/index.md", "reason": "Index of all thinking guides"}
-{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify the full data path: skill output -> API -> DB -> store -> MD render"}
-{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Verify no duplicate size-check / sanitize code"}
-{"file": "skills/fsrs-flashcards/SKILL.md", "reason": "Cross-check: did the skill updates match the new contract?"}
-{"file": "skills/fsrs-flashcards/references/format.md", "reason": "Cross-check: did the schema and examples get updated?"}

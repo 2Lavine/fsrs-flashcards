@@ -1,5 +1,0 @@
-{"file": "docs/planning/us-19-select-alignment.md", "reason": "Acceptance — shadcn Select used, alignment matches Input/Button"}
-{"file": ".trellis/spec/client/frontend/index.md", "reason": "Check the Browse page change matches frontend conventions"}
-{"file": ".trellis/spec/guides/index.md", "reason": "Index of all thinking guides"}
-{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify the deckFilter state flow is preserved"}
-{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Verify no duplicate Select code introduced"}

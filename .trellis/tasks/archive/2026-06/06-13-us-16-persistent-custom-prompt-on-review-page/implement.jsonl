@@ -1,5 +1,0 @@
-{"file": "docs/planning/us-16-persistent-custom-prompt.md", "reason": "User story for persistent custom input on Review page"}
-{"file": ".trellis/spec/client/frontend/index.md", "reason": "Frontend conventions for the Review page component change"}
-{"file": ".trellis/spec/guides/index.md", "reason": "Index of all thinking guides"}
-{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Review page -> task queue -> LLM call data flow must not be broken"}
-{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Reuse the existing enqueue/task-queue path; do not duplicate the LLM call logic"}

@@ -1,8 +1,0 @@
-{"file": "docs/planning/us-15-source-markdown.md", "reason": "User story: source field is LLM-cropped excerpts (Markdown, <=8000 chars), rendered as Markdown on the review page"}
-{"file": ".trellis/spec/client/frontend/index.md", "reason": "Frontend conventions for the new ReactMarkdown component in ReviewPage"}
-{"file": ".trellis/spec/server/frontend/index.md", "reason": "Server-side API response shape — ensure source field is preserved end-to-end"}
-{"file": ".trellis/spec/guides/index.md", "reason": "Index of all thinking guides"}
-{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify type flow: skill output JSON -> import API -> decks.source -> /due-cards join -> Flashcard.source -> MD component"}
-{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Reuse existing /import route shape; do not duplicate source size check logic"}
-{"file": "skills/fsrs-flashcards/SKILL.md", "reason": "Source of the skill rules — needs an update to the Generation Process step requiring LLM-cropped source"}
-{"file": "skills/fsrs-flashcards/references/format.md", "reason": "Schema docs and examples — both need updating to reflect the new LLM-cropped source contract"}
