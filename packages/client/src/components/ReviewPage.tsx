@@ -16,6 +16,7 @@ import { Skeleton } from "./ui/skeleton";
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
+import { Send } from "lucide-react";
 
 const ratingStyles: Record<number, string> = {
   [Rating.Again]:
@@ -297,7 +298,7 @@ export const ReviewPage: React.FC = () => {
                   />
                   {s.revealed && (
                     <div
-                      className="mt-6 pt-6 border-t text-base leading-relaxed text-muted-foreground"
+                      className="mt-6 pt-6 text-base leading-relaxed text-muted-foreground"
                       dangerouslySetInnerHTML={{
                         __html: renderCloze(s.card.answer, true),
                       }}
@@ -372,8 +373,8 @@ export const ReviewPage: React.FC = () => {
             )}
           </div>
 
-          {/* Custom Prompt — fixed at viewport bottom */}
-          <div className="fixed bottom-0 left-0 right-0 bg-background border-t shadow-lg z-50">
+          {/* Custom Prompt — fixed at viewport bottom, aligned to main column */}
+          <div className="fixed bottom-0 start-[var(--sidebar-width)] end-[var(--right-panel-width)] bg-background shadow-lg z-50">
             <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-2">
               <input
                 type="text"
@@ -384,8 +385,15 @@ export const ReviewPage: React.FC = () => {
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCustomAi(); } }}
                 disabled={!s.card}
               />
-              <Button size="sm" onClick={handleCustomAi} disabled={!s.card || !customPrompt.trim()}>Generate</Button>
-              <Button variant="outline" size="sm" onClick={() => setCustomPrompt('')}>Clear</Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handleCustomAi}
+                disabled={!s.card || !customPrompt.trim()}
+                aria-label="Generate flashcards"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </>

@@ -48,7 +48,14 @@ export const App: React.FC = () => {
   return (
     <TooltipProvider>
       <SidebarProvider>
-        <div className="flex h-screen w-full">
+        <div
+          className="flex h-screen w-full"
+          style={
+            {
+              "--right-panel-width": rightPanelOpen ? "20rem" : "1.75rem",
+            } as React.CSSProperties
+          }
+        >
           {/* Left Sidebar - Navigation */}
           <Sidebar side="left">
             <SidebarContent>
