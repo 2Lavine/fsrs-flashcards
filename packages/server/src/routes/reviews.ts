@@ -36,13 +36,13 @@ reviews.post('/review', async (c) => {
 reviews.post('/undo', async (c) => {
   const { cardId, prevFSRS: f } = await c.req.json<{
     cardId: string;
-    prevFSRS: { due: Date; stability: number; difficulty: number; elapsed_days: number; scheduled_days: number; reps: number; lapses: number; state: number; last_review?: Date; learning_steps: number };
+    prevFSRS: { due: string; stability: number; difficulty: number; elapsed_days: number; scheduled_days: number; reps: number; lapses: number; state: number; last_review?: string | null; learning_steps: number };
   }>();
   await db.update(cards).set({
-    fsrsDue: f.due.toISOString(), fsrsStability: f.stability, fsrsDifficulty: f.difficulty,
+    fsrsDue: f.due, fsrsStability: f.stability, fsrsDifficulty: f.difficulty,
     fsrsElapsedDays: f.elapsed_days, fsrsScheduledDays: f.scheduled_days,
     fsrsReps: f.reps, fsrsLapses: f.lapses, fsrsState: f.state,
-    fsrsLastReview: f.last_review?.toISOString() ?? null, fsrsLearningSteps: f.learning_steps,
+    fsrsLastReview: f.last_review ?? null, fsrsLearningSteps: f.learning_steps,
   }).where(eq(cards.id, cardId));
 
   await db.delete(reviewLogs).where(eq(reviewLogs.id,

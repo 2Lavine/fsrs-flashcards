@@ -59,9 +59,10 @@ stats.get('/streak', async (c) => {
   return c.json({ streak: rows[0]?.streak ?? 0 });
 });
 
-// Daily counts — GROUP BY
+// Daily counts
 stats.get('/daily-counts', async (c) => {
-  const start = new Date(); start.setDate(start.getDate() - 6);
+  const days = parseInt(c.req.query('days') || '7', 10);
+  const start = new Date(); start.setDate(start.getDate() - (days - 1));
   const startStr = start.toISOString().slice(0, 10);
   const rows = await db
     .select({ day: sql<string>`substr(review, 1, 10)`, c: count() })
@@ -74,11 +75,11 @@ stats.get('/daily-counts', async (c) => {
   for (const r of rows) map.set(r.day, r.c);
 
   const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const result: { label: string; count: number }[] = [];
-  for (let i = 0; i < 7; i++) {
+  const result: { label: string; date: string; count: number }[] = [];
+  for (let i = 0; i < days; i++) {
     const d = new Date(start); d.setDate(d.getDate() + i);
     const key = d.toISOString().slice(0, 10);
-    result.push({ label: labels[d.getDay()], count: map.get(key) ?? 0 });
+    result.push({ label: labels[d.getDay()], date: key, count: map.get(key) ?? 0 });
   }
   return c.json({ daily: result });
 });
@@ -110,6 +111,22 @@ stats.get('/rating-counts', async (c) => {
     result.push({ label: labels[i], count: map.get(i) ?? 0 });
   }
   return c.json({ ratings: result });
+});
+
+// Deck counts — cards + reviews per deck
+stats.get('/deck-counts', async (c) => {
+  const rows = await db
+    .select({
+      name: decks.name,
+      cardCount: count(cards.id),
+      reviewCount: sql<number>`COALESCE((SELECT COUNT(*) FROM review_logs WHERE review_logs.card_id IN (SELECT id FROM cards WHERE cards.deck_id = decks.id)), 0)`,
+    })
+    .from(decks)
+    .leftJoin(cards, eq(cards.deckId, decks.id))
+    .groupBy(decks.id)
+    .orderBy(sql`2 DESC`)
+    .all();
+  return c.json({ decks: rows });
 });
 
 export default stats;

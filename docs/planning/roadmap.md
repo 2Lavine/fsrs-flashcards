@@ -26,7 +26,8 @@
 - [ ] **Anki export** — `.apkg` export for Anki users
 - [ ] **Scheduler config UI** — adjust retention, max interval, steps from Stats page
 - [ ] **Keyboard shortcut cheatsheet** — overlay showing all hotkeys
-- [ ] **Review heatmap** — GitHub-style contribution graph for review activity
+- [x] **Review heatmap** — GitHub-style contribution graph for review activity → US-13
+- [x] **Stats by deck** — replace category breakdown with deck-level stats → US-13
 
 ## Tech Debt
 

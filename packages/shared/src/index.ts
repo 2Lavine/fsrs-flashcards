@@ -44,8 +44,9 @@ export interface ICardQuery {
   getStats(): Promise<{ total: number; due: number; new: number; learning: number; review: number; totalReviews: number; today: number; avgDifficulty: string }>;
   getStreak(): Promise<number>;
   getRecentLogs(limit?: number): Promise<ReviewEntry[]>;
-  getDailyCounts(days?: number): Promise<{ label: string; count: number }[]>;
+  getDailyCounts(days?: number): Promise<{ label: string; date: string; count: number }[]>;
   getCategoryCounts(): Promise<{ name: string; count: number }[]>;
+  getDeckCounts(): Promise<{ name: string; cardCount: number; reviewCount: number }[]>;
   getRatingCounts(): Promise<{ label: string; count: number }[]>;
   getPausedCategories(): Promise<string[]>;
   getCategoriesByDeck(deckId?: string): Promise<string[]>;

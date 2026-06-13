@@ -51,8 +51,14 @@ export const api = {
   },
   stats: () => get<{ total: number; due: number; new: number; learning: number; review: number; totalReviews: number; today: number; avgDifficulty: string }>('/stats'),
   streak: () => get<{ streak: number }>('/streak'),
-  dailyCounts: () => get<{ daily: { label: string; count: number }[] }>('/daily-counts'),
+  dailyCounts: (days?: number) => {
+    const sp = new URLSearchParams();
+    if (days) sp.set('days', String(days));
+    const qs = sp.toString();
+    return get<{ daily: { label: string; date: string; count: number }[] }>(`/daily-counts${qs ? '?' + qs : ''}`);
+  },
   decks: () => get<{ decks: { id: string; name: string; source: string }[] }>('/decks'),
+  deckCounts: () => get<{ decks: { name: string; cardCount: number; reviewCount: number }[] }>('/deck-counts'),
   categories: (deckId?: string) => get<{ categories: string[] }>(`/categories${deckId ? '?deckId=' + deckId : ''}`),
   categoryCounts: () => get<{ categories: { name: string; count: number }[] }>('/category-counts'),
   paused: () => get<{ paused: string[] }>('/paused'),

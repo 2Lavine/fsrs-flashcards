@@ -115,6 +115,7 @@ export const useReviewStore = create<ReviewState>((set, get) => {
         cardQuery.getPausedCategories(),
       ]);
       set({ stats, decks, pausedCategories: paused, loaded: true });
+      get().refreshDueCards();
     },
 
     refreshDueCards: async () => {

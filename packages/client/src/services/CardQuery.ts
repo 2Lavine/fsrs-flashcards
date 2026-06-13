@@ -35,7 +35,8 @@ export class CardQuery implements ICardQuery {
   async getDecks() { return (await api.decks()).decks as Deck[]; }
   async getStats() { return api.stats(); }
   async getStreak() { return (await api.streak()).streak; }
-  async getDailyCounts() { return (await api.dailyCounts()).daily; }
+  async getDailyCounts(days?: number) { return (await api.dailyCounts(days)).daily; }
+  async getDeckCounts() { return (await api.deckCounts()).decks; }
   async getCategoryCounts() { return (await api.categoryCounts()).categories; }
   async getRatingCounts() { return (await api.ratingCounts()).ratings; }
   async getPausedCategories() { return (await api.paused()).paused; }
