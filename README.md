@@ -95,4 +95,4 @@ src/
 
 ## License
 
-MIT
+This project is source-available for personal, non-commercial use only. Redistribution, commercial use, or use in commercial products is prohibited without explicit permission.
