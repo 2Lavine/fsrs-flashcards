@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync, cpSync } from 'fs';
+import { writeFileSync, mkdirSync, cpSync, rmSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -10,12 +10,17 @@ const staticDir = resolve(output, 'static');
 mkdirSync(staticDir, { recursive: true });
 cpSync(resolve(root, 'packages/client/dist'), staticDir, { recursive: true });
 
-// 2. Route config only — Vercel handles function packaging
+// 2. Remove the old single-function bundle if present
+const oldBundle = resolve(root, 'api/[...route].js');
+try { rmSync(oldBundle); } catch {}
+
+// 3. Route config — split data and LLM into two Vercel functions
 const config = {
   version: 3,
   routes: [
     { handle: 'filesystem' },
-    { src: '^/api/(.*)$', dest: '/api/[...route]?...route=$1' },
+    { src: '^/api/(settings/llm|llm/.*)$', dest: '/api/[...llm]?...route=$1' },
+    { src: '^/api/(.*)$', dest: '/api/[...data]?...route=$1' },
     { src: '/(.*)', dest: '/' },
     { handle: 'error' },
     { status: 404, src: '^(?!/api).*$', dest: '/404.html' },

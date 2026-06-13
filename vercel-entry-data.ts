@@ -1,4 +1,4 @@
-import { app } from './packages/server/src/app';
+import { app } from './packages/server/src/app-data';
 
 // Manual bridge: Vercel Node.js (req, res) → Hono Web fetch
 export default async function handler(req: any, res: any) {
@@ -20,9 +20,8 @@ export default async function handler(req: any, res: any) {
   const webReq = new Request(url, init);
   const webRes = await app.fetch(webReq);
 
-  // If Hono returned 404, log the path for debugging
   if (webRes.status === 404) {
-    console.error(`[bridge] 404 for ${req.method} ${path}`);
+    console.error(`[data] 404 for ${req.method} ${path}`);
   }
 
   res.status(webRes.status);
@@ -39,7 +38,7 @@ export default async function handler(req: any, res: any) {
     let offset = 0;
     for (const c of chunks) {
       total.set(c, offset);
-      offset += c.length;
+      offset += c.byteLength;
     }
     res.end(Buffer.from(total));
   } else {
