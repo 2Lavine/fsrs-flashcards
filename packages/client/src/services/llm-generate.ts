@@ -50,14 +50,15 @@ export async function generateCards(
   card: { question: string; answer: string },
   existingCategories: string[] = [],
 ): Promise<GeneratedCard[]> {
-  const catsHint = existingCategories.length > 0
-    ? `\n现有分类列表（优先使用已有分类）：${existingCategories.join('、')}`
-    : '';
-  const prompt = preset.prompt
-    .replaceAll('{question}', card.question)
-    .replaceAll('{answer}', card.answer)
-    .replaceAll('{categories}', catsHint);
+  const result = await generateCardsWithRaw(config, preset, card, existingCategories);
+  return result.cards;
+}
 
+export async function generateCardsFromText(
+  config: LLMConfig,
+  system: string,
+  prompt: string,
+): Promise<{ text: string; cards: GeneratedCard[] }> {
   const res = await fetch('/api/llm/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -66,7 +67,7 @@ export async function generateCards(
       apiKey: config.apiKey,
       model: config.model,
       apiFormat: config.apiFormat,
-      system: preset.system,
+      system,
       prompt,
     }),
   });
@@ -77,5 +78,27 @@ export async function generateCards(
   }
 
   const data = await res.json();
-  return parseGeneratedCards(data.text);
+  try {
+    const cards = parseGeneratedCards(data.text);
+    return { text: data.text, cards };
+  } catch {
+    return { text: data.text, cards: [] };
+  }
+}
+
+export async function generateCardsWithRaw(
+  config: LLMConfig,
+  preset: CardPreset,
+  card: { question: string; answer: string },
+  existingCategories: string[] = [],
+): Promise<{ text: string; cards: GeneratedCard[] }> {
+  const catsHint = existingCategories.length > 0
+    ? `\n现有分类列表（优先使用已有分类）：${existingCategories.join('、')}`
+    : '';
+  const prompt = preset.prompt
+    .replaceAll('{question}', card.question)
+    .replaceAll('{answer}', card.answer)
+    .replaceAll('{categories}', catsHint);
+
+  return generateCardsFromText(config, preset.system, prompt);
 }

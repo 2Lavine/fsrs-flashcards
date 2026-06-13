@@ -94,7 +94,7 @@ export const BrowsePage: React.FC = () => {
         </div>
       )}
 
-      {/* Empty State */}
+      {/* Cards */}
       {cards.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
           <span className="text-4xl opacity-20">📭</span>
@@ -102,21 +102,19 @@ export const BrowsePage: React.FC = () => {
           <Button onClick={openImportModal}>Import Cards</Button>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="columns-3 gap-3">
           {cards.map(c => (
-            <div key={c.id} className="flex items-start justify-between border rounded-lg p-4 gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: renderCloze(c.question, true) }} />
-                <div className="text-sm text-muted-foreground mt-1">{c.answer}</div>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <span className="text-xs text-muted-foreground">{c.deck}</span>
-                  <Badge variant="outline" className="text-xs">{stateLabel(c.fsrs.state)}</Badge>
-                  <span className="text-xs text-muted-foreground">Due: {formatDate(c.fsrs.due)}</span>
-                  {c.category && <Badge variant="secondary" className="text-xs">{c.category}</Badge>}
-                  {c.tags.map(t => <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>)}
-                </div>
+            <div key={c.id} className="break-inside-avoid mb-3 border rounded-lg p-4">
+              <div className="font-medium text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: renderCloze(c.question, true) }} />
+              <div className="text-sm text-muted-foreground mt-1">{c.answer}</div>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <span className="text-xs text-muted-foreground">{c.deck}</span>
+                <Badge variant="outline" className="text-xs">{stateLabel(c.fsrs.state)}</Badge>
+                <span className="text-xs text-muted-foreground">Due: {formatDate(c.fsrs.due)}</span>
+                {c.category && <Badge variant="secondary" className="text-xs">{c.category}</Badge>}
+                {c.tags.map(t => <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>)}
               </div>
-              <Button variant="ghost" size="sm" className="text-destructive shrink-0" onClick={() => doDelete(c.id)}>Delete</Button>
+              <Button variant="ghost" size="sm" className="text-destructive mt-2 h-6 text-xs" onClick={() => doDelete(c.id)}>Delete</Button>
             </div>
           ))}
         </div>
