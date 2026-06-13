@@ -119,7 +119,7 @@ export const ReviewPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-5xl mx-auto">
+    <div className="flex flex-col gap-6 max-w-5xl mx-auto pb-24">
       {!s.loaded ? (
         <>
           <div className="flex justify-between">
@@ -372,16 +372,18 @@ export const ReviewPage: React.FC = () => {
             )}
           </div>
 
-          {/* Custom Prompt — always visible */}
-          <div className="flex flex-col gap-2">
-            <textarea
-              className="flex min-h-[80px] w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              placeholder='Ask anything — the LLM will turn it into flashcards. Use {question} and {answer} to reference the current card.'
-              value={customPrompt}
-              onChange={e => setCustomPrompt(e.target.value)}
-              rows={3}
-            />
-            <div className="flex gap-2 justify-end">
+          {/* Custom Prompt — fixed at viewport bottom */}
+          <div className="fixed bottom-0 left-0 right-0 bg-background border-t shadow-lg z-50">
+            <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-2">
+              <input
+                type="text"
+                className="flex-1 rounded-md border bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Ask anything — the LLM will turn it into flashcards. Use {question} and {answer} to reference the current card."
+                value={customPrompt}
+                onChange={e => setCustomPrompt(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCustomAi(); } }}
+                disabled={!s.card}
+              />
               <Button size="sm" onClick={handleCustomAi} disabled={!s.card || !customPrompt.trim()}>Generate</Button>
               <Button variant="outline" size="sm" onClick={() => setCustomPrompt('')}>Clear</Button>
             </div>
