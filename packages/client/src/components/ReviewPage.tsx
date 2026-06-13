@@ -322,6 +322,18 @@ export const ReviewPage: React.FC = () => {
                   )}
                 </div>
 
+                {/* Source Content */}
+                {s.card.source && (
+                  <details open className="border rounded-lg p-4 bg-muted/30 text-sm text-muted-foreground mt-4">
+                    <summary className="cursor-pointer font-medium text-foreground">
+                      Source
+                    </summary>
+                    <div className="mt-2 whitespace-pre-wrap max-h-64 overflow-y-auto">
+                      {s.card.source}
+                    </div>
+                  </details>
+                )}
+
                 {s.revealed && s.previewCache && (
                   <div className="grid grid-cols-4 gap-2">
                     {[

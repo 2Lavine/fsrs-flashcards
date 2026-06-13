@@ -19,6 +19,7 @@
 
 ## Next
 
+- [ ] **Review source content** — show deck.source below card during review → US-14
 - [ ] **vitest** — unit tests for FSRS scheduling, SQL CRUD, undo stack
 - [ ] **PWA** — offline-ready, installable to home screen
 - [ ] **Markdown cards** — code blocks, tables, math (KaTeX) in card content

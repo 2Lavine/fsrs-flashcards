@@ -4,6 +4,7 @@ export interface Flashcard {
   id: string;
   deckId: string;
   deck: string;
+  source?: string;
   question: string;
   answer: string;
   tags: string[];

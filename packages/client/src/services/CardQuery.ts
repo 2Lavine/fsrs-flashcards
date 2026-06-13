@@ -10,6 +10,7 @@ function parseTags(v: unknown): string[] {
 function rowToCard(r: Record<string, unknown>): Flashcard {
   return {
     id: r['id'] as string, deckId: r['deck_id'] as string, deck: (r['deck_name'] || '') as string,
+    source: (r['source'] as string) || '',
     question: r['question'] as string, answer: r['answer'] as string,
     tags: parseTags(r['tags']), category: (r['category'] as string) || '',
     createdAt: r['created_at'] as string,

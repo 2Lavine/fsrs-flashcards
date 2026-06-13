@@ -29,6 +29,7 @@ routes.get('/due-cards', async (c) => {
       fsrs_difficulty: cards.fsrsDifficulty, fsrs_elapsed_days: cards.fsrsElapsedDays,
       fsrs_scheduled_days: cards.fsrsScheduledDays, fsrs_reps: cards.fsrsReps,
       fsrs_lapses: cards.fsrsLapses, fsrs_state: cards.fsrsState,
+      source: decks.source,
       fsrs_last_review: cards.fsrsLastReview, fsrs_learning_steps: cards.fsrsLearningSteps,
     })
     .from(cards)
