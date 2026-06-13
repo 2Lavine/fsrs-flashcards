@@ -1,6 +1,10 @@
 {
   "buildCommand": "pnpm build && node scripts/deploy-build.mjs",
   "installCommand": "pnpm install --frozen-lockfile",
+  "functions": {
+    "api/[...data].js": { "regions": ["hnd1"] },
+    "api/[...llm].js": { "regions": ["hnd1"] }
+  },
   "routes": [
     { "handle": "filesystem" },
     { "src": "^/api/(settings/llm|llm/.*)$", "dest": "/api/[...llm]?...route=$1" },
