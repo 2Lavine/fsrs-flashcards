@@ -1,0 +1,5 @@
+{"file": "docs/planning/us-17-move-custom-prompt-bottom.md", "reason": "Acceptance — textarea at bottom, LLM receives current card, AiCardsPage untouched"}
+{"file": ".trellis/spec/client/frontend/index.md", "reason": "Check the layout matches conventions"}
+{"file": ".trellis/spec/guides/index.md", "reason": "Index of all thinking guides"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify the LLM call shape is restored to pre-US-16"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Verify no duplicate code introduced"}

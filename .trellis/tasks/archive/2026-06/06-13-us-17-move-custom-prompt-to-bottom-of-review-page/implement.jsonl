@@ -1,0 +1,5 @@
+{"file": "docs/planning/us-17-move-custom-prompt-bottom.md", "reason": "User story — move custom input to bottom + restore card injection"}
+{"file": ".trellis/spec/client/frontend/index.md", "reason": "Frontend conventions for the Review page layout change"}
+{"file": ".trellis/spec/guides/index.md", "reason": "Index of all thinking guides"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify Review page -> task queue -> LLM call flow uses current card"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Reuse the existing enqueue / cardQuery path; do not duplicate logic"}
