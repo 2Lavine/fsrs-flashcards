@@ -6,6 +6,7 @@ import { openImportModal } from './ImportModal';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 export const BrowsePage: React.FC = () => {
   const [search, setSearch] = useState('');
@@ -66,14 +67,16 @@ export const BrowsePage: React.FC = () => {
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-        <select
-          className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          value={deckFilter}
-          onChange={e => setDeckFilter(e.target.value)}
-        >
-          <option value="">All Decks</option>
-          {decks.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
+        <Select value={deckFilter} onValueChange={(v) => setDeckFilter(v ?? "")}>
+          <SelectTrigger>
+            <SelectValue placeholder="All Decks" />
+          </SelectTrigger>
+          <SelectContent>
+            {decks.map(d => (
+              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button onClick={openImportModal}>Import</Button>
         <Button variant="outline" onClick={doExport}>Export</Button>
       </div>
