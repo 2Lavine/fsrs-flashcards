@@ -7,7 +7,7 @@ import type { LLMConfig } from '@sour/llm-config';
 
 export interface AiTask {
   id: string;
-  status: 'running' | 'done' | 'error';
+  status: 'running' | 'done' | 'error' | 'imported';
   presetLabel: string;
   question: string;
   cards: GeneratedCard[];
@@ -79,7 +79,9 @@ export const useTaskQueue = create<TaskState>()(
         const deck = task.deck || 'Default';
         const { importCards } = (await import('../store-instance')).useStore.getState();
         await importCards(deck, '', input);
-        set(s => ({ tasks: s.tasks.filter(t => t.id !== id) }));
+        set(s => ({
+          tasks: s.tasks.map(t => t.id === id ? { ...t, status: 'imported' as const } : t),
+        }));
       },
     }),
     {
