@@ -1,0 +1,6 @@
+{"file": "docs/planning/us-14-source-content.md", "reason": "Source user story defining the feature, scenario, and acceptance criteria"}
+{"file": ".trellis/spec/client/frontend/index.md", "reason": "Client-side frontend conventions — UI patterns, component style"}
+{"file": ".trellis/spec/shared/frontend/index.md", "reason": "Shared package frontend conventions for the query type changes"}
+{"file": ".trellis/spec/guides/index.md", "reason": "Index of all thinking guides"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Type flows from SQL query → store → UI; we're changing the due-cards query shape"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Avoid duplicating source-loading logic; reuse the existing query"}
