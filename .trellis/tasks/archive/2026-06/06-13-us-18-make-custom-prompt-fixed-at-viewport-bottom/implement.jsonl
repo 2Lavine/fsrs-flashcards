@@ -1,0 +1,5 @@
+{"file": "docs/planning/us-18-fixed-one-row-prompt.md", "reason": "User story — fixed one-row chat-input style for custom prompt"}
+{"file": ".trellis/spec/client/frontend/index.md", "reason": "Frontend conventions for the Review page layout change"}
+{"file": ".trellis/spec/guides/index.md", "reason": "Index of all thinking guides"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify Review page -> task queue -> LLM call flow still uses current card"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Reuse the existing enqueue / handleCustomAi path; do not duplicate"}

@@ -1,0 +1,5 @@
+{"file": "docs/planning/us-18-fixed-one-row-prompt.md", "reason": "Acceptance — fixed at viewport bottom, one-row layout, two buttons on right"}
+{"file": ".trellis/spec/client/frontend/index.md", "reason": "Check the layout matches conventions"}
+{"file": ".trellis/spec/guides/index.md", "reason": "Index of all thinking guides"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify the LLM call shape is consistent"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Verify no duplicate code introduced"}
