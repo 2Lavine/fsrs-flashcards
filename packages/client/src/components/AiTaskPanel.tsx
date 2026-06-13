@@ -26,7 +26,7 @@ const MiniTask: React.FC<{ task: AiTask; onClick?: () => void }> = ({
   task,
   onClick,
 }) => {
-  const { dismiss, addCards } = useTaskQueue();
+  const { dismiss, addCards, addCard } = useTaskQueue();
   const cfg = statusConfig[task.status];
   const [expanded, setExpanded] = useState(false);
   const hasCards = task.status === "done" && task.cards.length > 0;
@@ -75,12 +75,31 @@ const MiniTask: React.FC<{ task: AiTask; onClick?: () => void }> = ({
 
       {expanded && hasCards && (
         <div className="mt-2 flex flex-col gap-1.5">
-          {task.cards.map((c, i) => (
-            <Card key={i} size="sm">
+          {task.cards.map((c, i) => {
+            const imported = task.importedIndices.includes(i);
+            return (
+            <Card key={i} size="sm" className={imported ? "opacity-50" : ""}>
               <CardContent className="px-3">
-                <p className="text-[11px] font-medium leading-snug">
-                  {c.question}
-                </p>
+                <div className="flex items-start justify-between gap-1">
+                  <p className="text-[11px] font-medium leading-snug flex-1">
+                    {c.question}
+                  </p>
+                  {imported ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0 shrink-0 text-muted-foreground hover:text-emerald-500"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addCard(task.id, i);
+                      }}
+                    >
+                      <Download className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
                   {c.answer}
                 </p>
@@ -94,7 +113,9 @@ const MiniTask: React.FC<{ task: AiTask; onClick?: () => void }> = ({
                 )}
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
+          {task.cards.some((_, i) => !task.importedIndices.includes(i)) && (
           <Button
             variant="default"
             size="sm"
@@ -105,8 +126,9 @@ const MiniTask: React.FC<{ task: AiTask; onClick?: () => void }> = ({
             }}
           >
             <Download className="h-3 w-3" />
-            Import {task.cards.length}
+            Import {task.cards.filter((_, i) => !task.importedIndices.includes(i)).length}
           </Button>
+          )}
         </div>
       )}
 

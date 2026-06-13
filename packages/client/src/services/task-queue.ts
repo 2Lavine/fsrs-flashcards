@@ -11,6 +11,7 @@ export interface AiTask {
   presetLabel: string;
   question: string;
   cards: GeneratedCard[];
+  importedIndices: number[];
   error: string;
   deck: string;
   category: string;
@@ -22,6 +23,7 @@ interface TaskState {
   enqueue: (config: LLMConfig, presetIdx: number, card: { question: string; answer: string; deck: string; category: string; tags: string[] }, opts?: { customPrompt?: string; categories?: string[] }) => void;
   dismiss: (id: string) => void;
   addCards: (id: string) => Promise<void>;
+  addCard: (id: string, index: number) => Promise<void>;
 }
 
 let nextId = Date.now();
@@ -44,6 +46,7 @@ export const useTaskQueue = create<TaskState>()(
           presetLabel: preset.label,
           question: card.question.slice(0, 60) + (card.question.length > 60 ? '…' : ''),
           cards: [],
+          importedIndices: [],
           error: '',
           deck: card.deck,
           category: card.category,
@@ -70,7 +73,9 @@ export const useTaskQueue = create<TaskState>()(
       addCards: async (id) => {
         const task = get().tasks.find(t => t.id === id);
         if (!task || task.cards.length === 0) return;
-        const input = task.cards.map(c => ({
+        const unimported = task.cards.filter((_, i) => !task.importedIndices.includes(i));
+        if (unimported.length === 0) return;
+        const input = unimported.map(c => ({
           question: c.question,
           answer: c.answer,
           tags: Array.isArray(task.tags) ? task.tags : [],
@@ -79,8 +84,34 @@ export const useTaskQueue = create<TaskState>()(
         const deck = task.deck || 'Default';
         const { importCards } = (await import('../store-instance')).useStore.getState();
         await importCards(deck, '', input);
+        const allIndices = task.cards.map((_, i) => i);
         set(s => ({
-          tasks: s.tasks.map(t => t.id === id ? { ...t, status: 'imported' as const } : t),
+          tasks: s.tasks.map(t => t.id === id ? { ...t, status: 'imported' as const, importedIndices: allIndices } : t),
+        }));
+      },
+
+      addCard: async (id, index) => {
+        const task = get().tasks.find(t => t.id === id);
+        if (!task || index < 0 || index >= task.cards.length) return;
+        if (task.importedIndices.includes(index)) return;
+        const c = task.cards[index];
+        const input = [{
+          question: c.question,
+          answer: c.answer,
+          tags: Array.isArray(task.tags) ? task.tags : [],
+          category: c.category || task.category,
+        }];
+        const deck = task.deck || 'Default';
+        const { importCards } = (await import('../store-instance')).useStore.getState();
+        await importCards(deck, '', input);
+        const importedIndices = [...task.importedIndices, index];
+        const allImported = importedIndices.length === task.cards.length;
+        set(s => ({
+          tasks: s.tasks.map(t =>
+            t.id === id
+              ? { ...t, importedIndices, status: allImported ? ('imported' as const) : t.status }
+              : t
+          ),
         }));
       },
     }),
@@ -91,6 +122,17 @@ export const useTaskQueue = create<TaskState>()(
           t.status === 'running' ? { ...t, status: 'error' as const, error: 'Refreshed while running' } : t
         ),
       }),
+      merge: (persisted, current) => {
+        const p = persisted as Partial<TaskState> | undefined;
+        if (!p?.tasks) return current;
+        return {
+          ...current,
+          tasks: p.tasks.map(t => ({
+            ...t,
+            importedIndices: t.importedIndices ?? [],
+          } as AiTask)),
+        };
+      },
     }
   )
 );
