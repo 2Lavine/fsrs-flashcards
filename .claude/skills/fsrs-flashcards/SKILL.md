@@ -15,12 +15,54 @@ Cloze cards use `{{c1::answer}}` syntax in the question field. The review app re
 
 ## Density Control
 
-| Level | Behavior |
-|-------|----------|
-| `low` | Core concepts only — the "must know" facts |
-| `medium` | Key concepts + important supporting details (default) |
-| `high` | All significant facts, nuances, and sub-points |
-| `verbose` | Every extractable fact including minor details and edge cases |
+Card count is determined by three factors: **genre baseline × density level × 5-year filter**.
+
+### 1. Genre Baseline (Propositional Density)
+
+Different genres carry radically different densities of atomic, testable facts (Kintsch, 1998). Do NOT treat all words equally.
+
+| Genre | Propositions / 1000 words | Examples |
+|-------|---------------------------|----------|
+| Conversation / interview | 15–25 | Podcasts, transcripts, Q&A |
+| Narrative / memoir | 10–20 | Stories, personal essays, case studies |
+| Expository / article | 25–40 | Blog posts, essays, journalism |
+| Textbook / technical | 40–70 | Academic papers, documentation, manuals |
+
+Identify the genre before estimating target count. Mixed input (e.g., lecture with stories) should use the dominant genre.
+
+### 2. Density Level → Capture Rate
+
+| Level | Capture rate | What gets through |
+|-------|-------------|-------------------|
+| `low` | ~25% | Only foundational, "must-know" propositions |
+| `medium` | ~50% | Key concepts + important supporting details (default) |
+| `high` | ~75% | All significant facts, nuances, sub-points |
+| `verbose` | ~90% | Nearly every extractable fact, including edge cases |
+
+### 3. Target Estimation (mandatory)
+
+After identifying genre and density, compute the target range:
+
+```
+target_min = propositions_low × capture_rate_low × (word_count / 1000)
+target_max = propositions_high × capture_rate_high × (word_count / 1000)
+```
+
+Round to nearest 5. This range is a **soft guardrail**, not a quota — never pad to hit a number.
+
+Example: 2000-word interview at medium density
+→ 15–25 props/1K × 50% × 2 = **15–25 cards**
+
+Example: 500-word textbook passage at high density
+→ 40–70 props/1K × 75% × 0.5 = **15–26 cards**
+
+### 4. The 5-Year Filter (Hard Upper Bound)
+
+> Precision is more important than recall. A false positive (card for a fact not worth remembering) costs future review time and erodes trust in the deck.
+
+Before finalizing each card, ask: **"Will the learner still need this fact in 5 years?"**
+- If no → skip, regardless of density level
+- This filter hits harder at `low`/`medium`, but applies at all levels
 
 Infer density from context when not stated:
 - Short text (< 200 words), "快速", "大概", "overview" → `low`
@@ -138,11 +180,13 @@ Based on the SuperMemo Twenty Rules of Formulating Knowledge. These are the core
 - For time-sensitive knowledge (economic data, software versions, current events), note the vintage in the answer.
 - Example: "(2024 年数据)", "(截至 2025 年 6 月)", "(React 19+)"
 
-### 17. Prioritize (Rule 20)
+### 17. Prioritize — Precision Over Recall (Rule 20)
 
 - You cannot cardify everything. Use density levels to prioritize.
 - At every density level, prefer: foundational concepts > applied facts > edge cases > trivia.
-- When in doubt, ask: "Will the learner still need this card in 5 years?" If no, consider skipping.
+- **False positive principle**: a card for a fact not worth remembering costs future review time and dilutes the deck's trustworthiness. A missed fact is invisible; a bad card is actively harmful.
+- When in doubt, apply the 5-year test: "Will the learner still need this card in 5 years?" If no, skip.
+- This is **not** a quota system — never inflate cards to hit a target number. Fewer, higher-quality cards beat more, lower-quality ones.
 
 ## Card Quality Checklist
 
@@ -168,12 +212,15 @@ After generating, validate every card:
 ## Generation Process
 
 1. **Determine density** — check explicit request, infer from context, default to medium.
-2. **Parse input** — identify key concepts, facts, definitions, domain, source language.
-3. **Extract atomic facts** — each fact stands alone, filter by density.
-4. **Formulate cards** — choose question type per fact, apply all 17 rules.
-5. **Add metadata** — 2–4 tags, 1 category (with `/` hierarchy).
-6. **Self-validate** — run the quality checklist on every card.
-7. **Output JSON** — valid, parseable JSON code block.
+2. **Identify genre** — classify as conversation / narrative / expository / textbook. Look up propositional density range.
+3. **Estimate target count** — compute `(props_per_1K × capture_rate × word_count / 1000)`. Round to nearest 5. This is a guardrail, not a quota.
+4. **Parse input** — identify key concepts, facts, definitions, domain, source language.
+5. **Extract atomic facts** — each fact stands alone. Filter by density level, then apply the 5-year test as a hard cutoff.
+6. **Compare to target** — if actual count falls significantly outside the estimated range, re-check: am I over-cardifying trivia? Am I skipping significant concepts? Adjust, but never pad.
+7. **Formulate cards** — choose question type per fact, apply all 17 rules.
+8. **Add metadata** — 2–4 tags, 1 category (with `/` hierarchy).
+9. **Self-validate** — run the quality checklist on every card.
+10. **Output JSON** — valid, parseable JSON code block.
 
 ## Importing Cards
 
