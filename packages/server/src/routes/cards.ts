@@ -147,6 +147,9 @@ routes.post('/import', async (c) => {
     cards: { question: string; answer: string; tags?: string[]; category?: string }[];
   }>();
   if (!deck || !cardList?.length) return c.json({ error: 'Need deck + cards' }, 400);
+  if (source && source.length > 16_000) {
+    return c.json({ error: `Source too large: ${source.length} bytes (max 16000)` }, 400);
+  }
 
   const now = new Date().toISOString();
   let d = await db.select({ id: decks.id }).from(decks).where(eq(decks.name, deck)).get();

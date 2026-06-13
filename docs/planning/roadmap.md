@@ -19,7 +19,8 @@
 
 ## Next
 
-- [ ] **Review source content** — show deck.source below card during review → US-14
+- [x] **Review source content** — show deck.source below card during review → US-14
+- [x] **Markdown source on review** — render source as MD + skill outputs LLM-cropped excerpts → US-15
 - [ ] **vitest** — unit tests for FSRS scheduling, SQL CRUD, undo stack
 - [ ] **PWA** — offline-ready, installable to home screen
 - [ ] **Markdown cards** — code blocks, tables, math (KaTeX) in card content

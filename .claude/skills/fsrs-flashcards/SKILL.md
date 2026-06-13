@@ -175,6 +175,14 @@ Based on the SuperMemo Twenty Rules of Formulating Knowledge. These are the core
 - If the source text does not explicitly support a claim, reconsider whether the card should exist.
 - Note: currently the import API does not store source_quote — it serves as a reference for the user to verify accuracy.
 
+### 18a. Source Excerpts (cropped, Markdown)
+
+- The top-level `source` field must contain **LLM-cropped source excerpts** — the relevant passages from the original input that support the generated cards.
+- NOT a one-line description (e.g. "Cell structure lecture notes"), and NOT the verbatim full text.
+- Format as **Markdown** to preserve structure: headings, lists, code blocks, inline formatting.
+- Length: **≤ 8000 characters**.
+- The LLM knows which passages matter — select the specific segments that back the generated cards, not the entire input.
+
 ### 16. Date Stamping (Rule 19)
 
 - For time-sensitive knowledge (economic data, software versions, current events), note the vintage in the answer.
@@ -217,10 +225,11 @@ After generating, validate every card:
 4. **Parse input** — identify key concepts, facts, definitions, domain, source language.
 5. **Extract atomic facts** — each fact stands alone. Filter by density level, then apply the 5-year test as a hard cutoff.
 6. **Compare to target** — if actual count falls significantly outside the estimated range, re-check: am I over-cardifying trivia? Am I skipping significant concepts? Adjust, but never pad.
-7. **Formulate cards** — choose question type per fact, apply all 17 rules.
-8. **Add metadata** — 2–4 tags, 1 category (with `/` hierarchy).
-9. **Self-validate** — run the quality checklist on every card.
-10. **Output JSON** — valid, parseable JSON code block.
+7. **Crop source excerpts** — from the original input, select the relevant passages that support the generated cards. Format as Markdown (≤ 8000 chars). Place in the `source` field.
+8. **Formulate cards** — choose question type per fact, apply all 17 rules.
+9. **Add metadata** — 2–4 tags, 1 category (with `/` hierarchy).
+10. **Self-validate** — run the quality checklist on every card.
+11. **Output JSON** — valid, parseable JSON code block.
 
 ## Importing Cards
 

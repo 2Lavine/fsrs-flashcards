@@ -5,7 +5,7 @@
 ```json
 {
   "deck": "Deck Name",
-  "source": "Brief description of source text",
+  "source": "LLM-cropped source excerpts (Markdown, ≤ 8000 chars) — the relevant passages from the original input that support these cards.",
   "cards": [
     {
       "question": "What is the capital of France?",
@@ -21,7 +21,7 @@
 | Field | Required | Description |
 |-------|----------|-------------|
 | `deck` | Yes | Deck name. If the deck doesn't exist, it's auto-created. |
-| `source` | No | Human-readable description of where this batch came from. |
+| `source` | No | LLM-cropped source excerpts (Markdown formatted, ≤ 8000 chars) — the relevant passages from the original input that support these cards. |
 | `cards` | Yes | Array of card objects (min 1). |
 | `cards[].question` | Yes | Question text. Use `{{c1::answer}}` syntax for cloze cards. |
 | `cards[].answer` | Yes | Answer text. For multi-cloze, separate answers with `;`. |
@@ -51,7 +51,7 @@ answer:   "FSRS; stability; difficulty; retrievability"
 ```json
 {
   "deck": "Cell Biology",
-  "source": "Cell structure lecture notes",
+  "source": "细胞主要由细胞膜、细胞质和细胞核组成。\n\n- **细胞膜**: 控制物质进出细胞\n- **细胞核**: 含有遗传物质DNA\n- **线粒体**: 细胞的能量工厂，通过有氧呼吸产生ATP",
   "cards": [
     {
       "question": "{{c1::细胞膜}}的主要功能是什么？",
@@ -95,7 +95,7 @@ answer:   "FSRS; stability; difficulty; retrievability"
 ```json
 {
   "deck": "Spaced Repetition",
-  "source": "FSRS algorithm explanation",
+  "source": "FSRS uses a **three-component model** of memory:\n\n1. **Stability (S)** — increases with each successful review\n2. **Difficulty (D)** — adjusts based on review outcomes\n3. **Retrievability (R)** — decays over time according to a forgetting curve\n\nUnlike SM-2 which only uses a single difficulty factor, FSRS tracks stability independently.",
   "cards": [
     {
       "question": "What are the three components of the FSRS memory model?",
@@ -144,7 +144,13 @@ answer:   "FSRS; stability; difficulty; retrievability"
 ```json
 {
   "deck": "Python",
-  "source": "Python decorators explanation",
+  "source": "Python decorators are functions that modify other functions.
+
+Syntax: `@decorator_name` above a function definition
+- `@log` before `def foo():` is equivalent to `foo = log(foo)`
+- `@a @b def f():` means `f = a(b(f))` — applied bottom-up
+
+Common uses: **logging**, **timing**, **access control**, **caching**.",
   "cards": [
     {
       "question": "What is a Python decorator?",

@@ -13,6 +13,9 @@ import { openImportModal } from "./ImportModal";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
+import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
 
 const ratingStyles: Record<number, string> = {
   [Rating.Again]:
@@ -328,8 +331,10 @@ export const ReviewPage: React.FC = () => {
                     <summary className="cursor-pointer font-medium text-foreground">
                       Source
                     </summary>
-                    <div className="mt-2 whitespace-pre-wrap max-h-64 overflow-y-auto">
-                      {s.card.source}
+                    <div className="mt-2 max-h-64 overflow-y-auto [&_h1]:text-base [&_h1]:font-semibold [&_h1]:my-2 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:my-1.5 [&_h3]:text-sm [&_h3]:font-medium [&_h3]:my-1 [&_pre]:bg-muted-foreground/10 [&_pre]:p-3 [&_pre]:rounded [&_pre]:overflow-x-auto [&_pre]:my-2 [&_pre]:text-xs [&_code]:bg-muted-foreground/10 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/30 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:my-2 [&_a]:underline [&_a]:text-foreground/80 [&_p]:my-1 [&_hr]:border-border [&_hr]:my-3 [&_table]:w-full [&_table]:border-collapse [&_table]:my-2 [&_th]:border [&_th]:border-border [&_th]:p-1.5 [&_th]:text-left [&_th]:bg-muted-foreground/10 [&_td]:border [&_td]:border-border [&_td]:p-1.5 [&_img]:max-w-full [&_img]:rounded">
+                      <ReactMarkdown rehypePlugins={[rehypeSanitize]} remarkPlugins={[remarkGfm]}>
+                        {s.card.source}
+                      </ReactMarkdown>
                     </div>
                   </details>
                 )}
