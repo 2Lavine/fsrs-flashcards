@@ -31,7 +31,6 @@ const ratingStyles: Record<number, string> = {
 export const ReviewPage: React.FC = () => {
   const s = useReviewStore();
   const enqueue = useTaskQueue((s) => s.enqueue);
-  const [customOpen, setCustomOpen] = React.useState(false);
   const [customPrompt, setCustomPrompt] = React.useState('');
 
   useEffect(() => {
@@ -106,17 +105,15 @@ export const ReviewPage: React.FC = () => {
   };
 
   const handleCustomAi = async () => {
-    const card = s.card;
-    if (!card || !customPrompt.trim()) return;
+    if (!customPrompt.trim()) return;
     const configs = await llmStorage.getAll();
     const config = configs[0];
     if (!config?.baseURL) { toast('Please configure LLM settings first'); return; }
-    const cats = await cardQuery.getCategoriesByDeck(card.deckId || undefined);
+    const cats = await cardQuery.getCategoriesByDeck();
     enqueue(config, -1, {
-      question: card.question, answer: card.answer,
-      deck: card.deck, category: card.category, tags: card.tags,
+      question: '', answer: '',
+      deck: '', category: '', tags: [],
     }, { customPrompt: customPrompt.trim(), categories: cats });
-    setCustomOpen(false);
     setCustomPrompt('');
   };
 
@@ -244,7 +241,6 @@ export const ReviewPage: React.FC = () => {
                   {p.label}
                 </Button>
               ))}
-              <Button variant="outline" size="sm" onClick={() => setCustomOpen(!customOpen)}>Custom</Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -255,22 +251,20 @@ export const ReviewPage: React.FC = () => {
               </Button>
             </div>
 
-            {/* Custom Prompt */}
-            {customOpen && s.card && (
+            {/* Custom Prompt — always visible */}
               <div className="flex flex-col gap-2">
                 <textarea
                   className="flex min-h-[80px] w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder='Describe how to rewrite this card... Use {question} and {answer} as placeholders. Output JSON: {"cards":[{"question":"...","answer":"...","category":"..."}]}'
+                  placeholder='Ask anything — the LLM will turn it into flashcards. Use {question} and {answer} to reference the current card.'
                   value={customPrompt}
                   onChange={e => setCustomPrompt(e.target.value)}
-                  rows={4}
+                  rows={3}
                 />
                 <div className="flex gap-2 justify-end">
                   <Button size="sm" onClick={handleCustomAi} disabled={!customPrompt.trim()}>Generate</Button>
-                  <Button variant="outline" size="sm" onClick={() => { setCustomOpen(false); setCustomPrompt(''); }}>Cancel</Button>
+                  <Button variant="outline" size="sm" onClick={() => setCustomPrompt('')}>Clear</Button>
                 </div>
               </div>
-            )}
 
             {/* Card Display */}
             {s.deleting ? (
