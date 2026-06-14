@@ -68,6 +68,23 @@ export function renderCloze(text: string, revealed: boolean): string {
   }).join('');
 }
 
+/**
+ * Markdown variant: pre-replaces cloze markers with raw HTML spans so they
+ * pass through react-markdown + rehype-raw unchanged. Inner cloze content
+ * is HTML-escaped and rendered as plain text — nested markdown inside
+ * `{{c1::...}}` is intentionally not supported in v1.
+ */
+export function renderClozeAsMarkdown(text: string, revealed: boolean): string {
+  return text.replace(
+    /\{\{c(\d+)::([\s\S]*?)\}\}/g,
+    (_, _num, inner) => {
+      const cls = revealed ? 'cloze' : 'cloze-hidden';
+      const body = revealed ? escapeHtml(inner) : '[…]';
+      return `<span class="${cls}">${body}</span>`;
+    },
+  );
+}
+
 export function uid(): string {
   return crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2);
 }

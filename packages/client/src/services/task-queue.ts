@@ -69,6 +69,7 @@ export const useTaskQueue = create<TaskState>()(
           set(s => ({
             tasks: s.tasks.map(t => t.id === id ? { ...t, status: 'error', error: e instanceof Error ? e.message : 'Failed' } : t),
           }));
+          throw e;
         }
       },
 

@@ -21,6 +21,7 @@ icon: book-open
 - question 格式为"什么是 XXX？"
 - answer 格式为"[1 句定义]。例如：[具体例子]。"
 - 如果两个术语易混淆，在 answer 末尾加"注意与 YYY 的区别是 ZZZ"
+- question 和 answer 支持 markdown 语法（**加粗**、`行内代码`、代码块、列表等），技术术语定义可附代码示例
 - 严格 JSON，不要其他文字
 
 ## prompt

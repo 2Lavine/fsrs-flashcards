@@ -130,7 +130,7 @@ describe('task-queue', () => {
     expect(useTaskQueue.getState().tasks).toHaveLength(0);
   });
 
-  it('addCards imports cards and removes task', async () => {
+  it('addCards imports cards and marks task as imported (state kept for persistence)', async () => {
     mockOk(makeCards(3));
     mockImportCards.mockResolvedValueOnce(undefined);
     const { useTaskQueue } = await import('../services/task-queue');
@@ -148,7 +148,12 @@ describe('task-queue', () => {
       { question: 'Q2', answer: 'A2', tags: ['tag1'], category: 'C2' },
       { question: 'Q3', answer: 'A3', tags: ['tag1'], category: 'C3' },
     ]);
-    expect(useTaskQueue.getState().tasks).toHaveLength(0);
+    // Task stays in state (AiTaskPanel filters 'imported' for UI; persistence
+    // also needs the entry in localStorage so undo/import history survives)
+    const tasks = useTaskQueue.getState().tasks;
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].status).toBe('imported');
+    expect(tasks[0].importedIndices).toEqual([0, 1, 2]);
   });
 
   it('addCards does nothing if task not found', async () => {

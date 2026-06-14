@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import type { Grade } from "ts-fsrs";
 import { Rating } from "ts-fsrs";
-import { formatDate, ratingLabel, renderCloze } from "../format";
+import { formatDate, ratingLabel, renderClozeAsMarkdown } from "../format";
 import { useReviewHotkeys } from "../hooks/useReviewHotkeys";
 import { toast } from "../hooks/useToast";
 import { llmStorage } from "../services/llm-storage";
@@ -14,6 +14,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { AlertTriangle, BookOpen, Lightbulb, Send, Sparkles, type LucideIcon } from "lucide-react";
@@ -97,18 +98,22 @@ export const ReviewPage: React.FC = () => {
       return;
     }
     const cats = await cardQuery.getCategoriesByDeck(card.deckId || undefined);
-    enqueue(
-      config,
-      presetIdx,
-      {
-        question: card.question,
-        answer: card.answer,
-        deck: card.deck,
-        category: card.category,
-        tags: card.tags,
-      },
-      { categories: cats },
-    );
+    try {
+      await enqueue(
+        config,
+        presetIdx,
+        {
+          question: card.question,
+          answer: card.answer,
+          deck: card.deck,
+          category: card.category,
+          tags: card.tags,
+        },
+        { categories: cats },
+      );
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Generation failed');
+    }
   };
 
   const handleCustomAi = async () => {
@@ -118,10 +123,14 @@ export const ReviewPage: React.FC = () => {
     const config = configs[0];
     if (!config?.baseURL) { toast('Please configure LLM settings first'); return; }
     const cats = await cardQuery.getCategoriesByDeck(card.deckId || undefined);
-    enqueue(config, -1, {
-      question: card.question, answer: card.answer,
-      deck: card.deck, category: card.category, tags: card.tags,
-    }, { customPrompt: customPrompt.trim(), categories: cats });
+    try {
+      await enqueue(config, -1, {
+        question: card.question, answer: card.answer,
+        deck: card.deck, category: card.category, tags: card.tags,
+      }, { customPrompt: customPrompt.trim(), categories: cats });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Generation failed');
+    }
     setCustomPrompt('');
   };
 
@@ -302,18 +311,28 @@ export const ReviewPage: React.FC = () => {
                     </span>
                   )}
                   <div
-                    className="text-lg leading-relaxed"
-                    dangerouslySetInnerHTML={{
-                      __html: renderCloze(s.card.question, s.revealed),
-                    }}
-                  />
+                    className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground/50 font-mono flex items-center gap-1.5"
+                    title={`Card ID: ${s.card.id}`}
+                  >
+                    <span>{s.dueCards.length} left</span>
+                    <span>·</span>
+                    <span>{s.card.id.slice(0, 8)}</span>
+                  </div>
+                  <div
+                    className="text-lg leading-relaxed [&_p]:my-1.5 [&_p]:leading-relaxed [&_strong]:font-semibold [&_em]:italic [&_code]:bg-muted-foreground/10 [&_code]:px-1 [&_code]:rounded [&_code]:text-[0.9em] [&_pre]:bg-muted-foreground/10 [&_pre]:p-3 [&_pre]:rounded [&_pre]:overflow-x-auto [&_pre]:my-2 [&_pre]:text-sm [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-1 [&_a]:underline [&_a]:text-foreground/80 [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/30 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:my-2 [&_hr]:border-border [&_hr]:my-3"
+                  >
+                    <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeSanitize]} remarkPlugins={[remarkGfm]}>
+                      {renderClozeAsMarkdown(s.card.question, s.revealed)}
+                    </ReactMarkdown>
+                  </div>
                   {s.revealed && (
                     <div
-                      className="mt-6 pt-6 text-base leading-relaxed text-muted-foreground"
-                      dangerouslySetInnerHTML={{
-                        __html: renderCloze(s.card.answer, true),
-                      }}
-                    />
+                      className="mt-6 pt-6 text-base leading-relaxed text-muted-foreground [&_p]:my-1.5 [&_p]:leading-relaxed [&_strong]:font-semibold [&_em]:italic [&_code]:bg-muted-foreground/10 [&_code]:px-1 [&_code]:rounded [&_code]:text-[0.9em] [&_pre]:bg-muted-foreground/10 [&_pre]:p-3 [&_pre]:rounded [&_pre]:overflow-x-auto [&_pre]:my-2 [&_pre]:text-sm [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-1 [&_a]:underline [&_a]:text-foreground/80 [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/30 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:my-2 [&_hr]:border-border [&_hr]:my-3"
+                    >
+                      <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeSanitize]} remarkPlugins={[remarkGfm]}>
+                        {renderClozeAsMarkdown(s.card.answer, true)}
+                      </ReactMarkdown>
+                    </div>
                   )}
                 </div>
 

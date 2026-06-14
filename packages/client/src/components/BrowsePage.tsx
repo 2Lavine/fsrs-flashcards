@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { cardQuery, useStore } from '../store-instance';
 import type { Flashcard, Deck } from '@fsrs/shared';
-import { renderCloze, formatDate, stateLabel } from '../format';
+import { renderClozeAsMarkdown, formatDate, stateLabel } from '../format';
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
+import remarkGfm from 'remark-gfm';
 import { openImportModal } from './ImportModal';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -108,8 +112,16 @@ export const BrowsePage: React.FC = () => {
         <div className="columns-3 gap-3">
           {cards.map(c => (
             <div key={c.id} className="break-inside-avoid mb-3 border rounded-lg p-4">
-              <div className="font-medium text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: renderCloze(c.question, true) }} />
-              <div className="text-sm text-muted-foreground mt-1">{c.answer}</div>
+              <div className="font-medium text-sm leading-relaxed [&_p]:my-1 [&_strong]:font-semibold [&_em]:italic [&_code]:bg-muted-foreground/10 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs [&_pre]:bg-muted-foreground/10 [&_pre]:p-2 [&_pre]:rounded [&_pre]:overflow-x-auto [&_pre]:text-xs [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/30 [&_blockquote]:pl-2 [&_blockquote]:italic">
+                <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeSanitize]} remarkPlugins={[remarkGfm]}>
+                  {renderClozeAsMarkdown(c.question, true)}
+                </ReactMarkdown>
+              </div>
+              <div className="text-sm text-muted-foreground mt-1 [&_p]:my-0.5 [&_strong]:font-semibold [&_em]:italic [&_code]:bg-muted-foreground/10 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5">
+                <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeSanitize]} remarkPlugins={[remarkGfm]}>
+                  {renderClozeAsMarkdown(c.answer, true)}
+                </ReactMarkdown>
+              </div>
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <span className="text-xs text-muted-foreground">{c.deck}</span>
                 <Badge variant="outline" className="text-xs">{stateLabel(c.fsrs.state)}</Badge>
