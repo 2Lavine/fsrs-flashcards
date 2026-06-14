@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { generateCards } from './llm-generate';
+import { generateCardsWithRaw } from './llm-generate';
 import { cardPresets } from './preset-loader';
 import type { GeneratedCard } from './llm-generate';
 import type { LLMConfig } from '@sour/llm-config';
@@ -16,6 +16,8 @@ export interface AiTask {
   deck: string;
   category: string;
   tags: string[];
+  outputType: 'cards' | 'explanation';
+  explanation: string;
 }
 
 interface TaskState {
@@ -38,7 +40,7 @@ export const useTaskQueue = create<TaskState>()(
         const isCustom = presetIdx === -1;
         const existingCategories = opts?.categories ?? [];
         const preset = isCustom
-          ? { key: 'custom', label: 'Custom', system: '你是一个知识卡片生成助手。根据用户指令生成多张卡片。严格按照JSON格式返回。', prompt: (opts?.customPrompt ?? '') + '\n\n原始问题：{question}\n原始答案：{answer}\n\nJSON格式：{"cards":[{"question":"问题","answer":"答案","category":"分类"}]}' }
+          ? { key: 'custom', label: 'Custom', system: '你是一个知识卡片生成助手。根据用户指令生成多张卡片。严格按照JSON格式返回。', prompt: (opts?.customPrompt ?? '') + '\n\n原始问题：{question}\n原始答案：{answer}\n\nJSON格式：{"cards":[{"question":"问题","answer":"答案","category":"分类"}]}', outputType: 'cards' as const }
           : cardPresets[presetIdx];
         const task: AiTask = {
           id,
@@ -51,13 +53,17 @@ export const useTaskQueue = create<TaskState>()(
           deck: card.deck,
           category: card.category,
           tags: card.tags,
+          outputType: preset.outputType ?? 'cards',
+          explanation: '',
         };
         set(s => ({ tasks: [...s.tasks, task] }));
 
         try {
-          const cards = await generateCards(config, preset, card, existingCategories);
+          const result = await generateCardsWithRaw(config, preset, card, existingCategories);
           set(s => ({
-            tasks: s.tasks.map(t => t.id === id ? { ...t, status: 'done', cards } : t),
+            tasks: s.tasks.map(t => t.id === id
+              ? { ...t, status: 'done', cards: result.cards, explanation: result.text }
+              : t),
           }));
         } catch (e) {
           set(s => ({
@@ -130,6 +136,8 @@ export const useTaskQueue = create<TaskState>()(
           tasks: p.tasks.map(t => ({
             ...t,
             importedIndices: t.importedIndices ?? [],
+            outputType: t.outputType ?? 'cards',
+            explanation: t.explanation ?? '',
           } as AiTask)),
         };
       },

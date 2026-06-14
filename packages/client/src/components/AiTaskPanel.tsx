@@ -7,6 +7,9 @@ import {
   Zap,
 } from "lucide-react";
 import React, { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
 import { useTaskQueue, type AiTask } from "../services/task-queue";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -29,17 +32,20 @@ const MiniTask: React.FC<{ task: AiTask; onClick?: () => void }> = ({
   const { dismiss, addCards, addCard } = useTaskQueue();
   const cfg = statusConfig[task.status];
   const [expanded, setExpanded] = useState(false);
+  const isExplanation = task.outputType === "explanation";
   const hasCards = task.status === "done" && task.cards.length > 0;
+  const hasExplanation = task.status === "done" && isExplanation && task.explanation;
+  const showExpanded = expanded || hasExplanation;
 
   return (
     <div
-      className={`pl-3 py-2.5 group/row hover:bg-accent/50 transition-colors cursor-pointer`}
+      className={`pl-3 py-2.5 group/row hover:bg-accent/50 transition-colors ${hasExplanation ? "cursor-default" : "cursor-pointer"}`}
       onClick={() => {
         if (hasCards) setExpanded(!expanded);
-        else onClick?.();
+        else if (!hasExplanation) onClick?.();
       }}
     >
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 pr-3">
         {cfg.icon}
         <span className="text-xs font-medium truncate flex-1">
           {task.presetLabel}
@@ -73,7 +79,18 @@ const MiniTask: React.FC<{ task: AiTask; onClick?: () => void }> = ({
         </p>
       )}
 
-      {expanded && hasCards && (
+      {showExpanded && hasExplanation && (
+        <div
+          className="mt-2 mr-2 text-[11px] leading-relaxed text-foreground/90 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1 [&_h4]:text-xs [&_h4]:font-semibold [&_h4]:mt-1.5 [&_h4]:mb-0.5 [&_p]:my-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-1 [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-1 [&_strong]:font-semibold [&_code]:bg-muted-foreground/10 [&_code]:px-1 [&_code]:rounded [&_code]:text-[10px] [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/30 [&_blockquote]:pl-2 [&_blockquote]:italic"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ReactMarkdown rehypePlugins={[rehypeSanitize]} remarkPlugins={[remarkGfm]}>
+            {task.explanation}
+          </ReactMarkdown>
+        </div>
+      )}
+
+      {showExpanded && hasCards && (
         <div className="mt-2 flex flex-col gap-1.5">
           {task.cards.map((c, i) => {
             const imported = task.importedIndices.includes(i);
@@ -132,7 +149,7 @@ const MiniTask: React.FC<{ task: AiTask; onClick?: () => void }> = ({
         </div>
       )}
 
-      {!expanded && task.status === "done" && task.cards.length === 0 && (
+      {!showExpanded && task.status === "done" && task.cards.length === 0 && !hasExplanation && (
         <p className="text-[11px] text-muted-foreground mt-0.5 ml-5">
           No cards generated
         </p>

@@ -16,7 +16,13 @@ import { Skeleton } from "./ui/skeleton";
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
-import { Send } from "lucide-react";
+import { AlertTriangle, BookOpen, Lightbulb, Send, Sparkles, type LucideIcon } from "lucide-react";
+
+const presetIconMap: Record<string, LucideIcon> = {
+  "lightbulb": Lightbulb,
+  "book-open": BookOpen,
+  "alert-triangle": AlertTriangle,
+};
 
 const ratingStyles: Record<number, string> = {
   [Rating.Again]:
@@ -233,16 +239,21 @@ export const ReviewPage: React.FC = () => {
                   Undo
                 </Button>
               )}
-              {cardPresets.map((p, i) => (
-                <Button
-                  key={p.key}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleAi(i)}
-                >
-                  {p.label}
-                </Button>
-              ))}
+              {cardPresets.map((p, i) => {
+                const PresetIcon = (p.icon && presetIconMap[p.icon]) || Sparkles;
+                return (
+                  <Button
+                    key={p.key}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAi(i)}
+                    title={p.description}
+                  >
+                    <PresetIcon className="h-3.5 w-3.5" />
+                    {p.label}
+                  </Button>
+                );
+              })}
               <Button
                 variant="ghost"
                 size="sm"

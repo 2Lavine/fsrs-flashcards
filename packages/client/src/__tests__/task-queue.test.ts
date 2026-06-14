@@ -3,9 +3,18 @@ import type { GeneratedCard } from '../services/llm-generate';
 
 // Mock generateCards
 const mockGenerateCards = vi.fn();
+const mockGenerateCardsWithRaw = vi.fn();
 vi.mock('../services/llm-generate', () => ({
   generateCards: mockGenerateCards,
+  generateCardsWithRaw: mockGenerateCardsWithRaw,
 }));
+
+function mockOk(cards: GeneratedCard[], text = '') {
+  return mockGenerateCardsWithRaw.mockResolvedValueOnce({ text, cards });
+}
+function mockFail(err: Error) {
+  return mockGenerateCardsWithRaw.mockRejectedValueOnce(err);
+}
 
 // Mock preset-loader
 vi.mock('../services/preset-loader', () => ({
@@ -58,7 +67,7 @@ describe('task-queue', () => {
   };
 
   it('enqueue creates a running task', async () => {
-    mockGenerateCards.mockResolvedValueOnce(makeCards(2));
+    mockOk(makeCards(2));
     const { useTaskQueue } = await import('../services/task-queue');
 
     await new Promise<void>(resolve => {
@@ -74,7 +83,7 @@ describe('task-queue', () => {
   });
 
   it('enqueue with custom prompt (presetIdx -1) works', async () => {
-    mockGenerateCards.mockResolvedValueOnce(makeCards(1));
+    mockOk(makeCards(1));
     const { useTaskQueue } = await import('../services/task-queue');
 
     await new Promise<void>(resolve => {
@@ -92,7 +101,7 @@ describe('task-queue', () => {
   });
 
   it('sets task to error when generateCards throws', async () => {
-    mockGenerateCards.mockRejectedValueOnce(new Error('API Error'));
+    mockFail(new Error('API Error'));
     const { useTaskQueue } = await import('../services/task-queue');
 
     await new Promise<void>(resolve => {
@@ -107,7 +116,7 @@ describe('task-queue', () => {
   });
 
   it('dismiss removes task from list', async () => {
-    mockGenerateCards.mockResolvedValueOnce(makeCards(2));
+    mockOk(makeCards(2));
     const { useTaskQueue } = await import('../services/task-queue');
 
     await new Promise<void>(resolve => {
@@ -122,7 +131,7 @@ describe('task-queue', () => {
   });
 
   it('addCards imports cards and removes task', async () => {
-    mockGenerateCards.mockResolvedValueOnce(makeCards(3));
+    mockOk(makeCards(3));
     mockImportCards.mockResolvedValueOnce(undefined);
     const { useTaskQueue } = await import('../services/task-queue');
 
@@ -149,7 +158,7 @@ describe('task-queue', () => {
   });
 
   it('enqueue truncates long questions in task display', async () => {
-    mockGenerateCards.mockResolvedValueOnce(makeCards(1));
+    mockOk(makeCards(1));
     const { useTaskQueue } = await import('../services/task-queue');
     const longQ = 'A'.repeat(200);
 

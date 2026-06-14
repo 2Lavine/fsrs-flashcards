@@ -30,12 +30,26 @@ Extract key terms from:
 Output JSON: {"cards":[{"question":"term","answer":"definition","category":"optional"}]}`,
 }));
 
+vi.mock('../../presets/counterexamples.md?raw', () => ({
+  default: `---
+key: counterexamples
+label: 反例与边界
+outputType: explanation
+---
+## system
+You are an edge-case analyst.
+
+## prompt
+Find counterexamples for: {question}
+{answer}`,
+}));
+
 describe('preset-loader', () => {
   it('loads and parses preset markdown files', async () => {
     const { loadPresets, cardPresets } = await import('../services/preset-loader');
     const presets = loadPresets();
-    expect(presets).toHaveLength(2);
-    expect(cardPresets).toHaveLength(2);
+    expect(presets).toHaveLength(3);
+    expect(cardPresets).toHaveLength(3);
   });
 
   it('presets have required fields', async () => {

@@ -22,6 +22,9 @@ export interface CardPreset {
   label: string;
   system: string;
   prompt: string;
+  description?: string;
+  icon?: string;
+  outputType?: 'cards' | 'explanation';
 }
 
 function parseGeneratedCards(text: string): GeneratedCard[] {
@@ -100,5 +103,9 @@ export async function generateCardsWithRaw(
     .replaceAll('{answer}', card.answer)
     .replaceAll('{categories}', catsHint);
 
-  return generateCardsFromText(config, preset.system, prompt);
+  const result = await generateCardsFromText(config, preset.system, prompt);
+  if (preset.outputType === 'explanation') {
+    return { text: result.text, cards: [] };
+  }
+  return result;
 }

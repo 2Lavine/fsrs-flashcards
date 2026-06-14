@@ -1,36 +1,49 @@
 import type { CardPreset } from './llm-generate';
 
+const RAW_PRESETS = import.meta.glob('../presets/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
+
+function parseFrontmatter(raw: string): Record<string, string> {
+  const fmMatch = raw.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  if (!fmMatch) return {};
+  const out: Record<string, string> = {};
+  for (const line of fmMatch[1].split('\n')) {
+    const [, k, v] = line.match(/^(\w+):\s*(.+)$/) || [];
+    if (k && v) out[k] = v.trim();
+  }
+  return out;
+}
+
 function parsePreset(raw: string): CardPreset | null {
   const fmMatch = raw.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!fmMatch) return null;
-
-  const frontmatter: Record<string, string> = {};
-  for (const line of fmMatch[1].split('\n')) {
-    const [, k, v] = line.match(/^(\w+):\s*(.+)$/) || [];
-    if (k && v) frontmatter[k] = v;
-  }
-  if (!frontmatter.key || !frontmatter.label) return null;
+  const fm = parseFrontmatter(raw);
+  if (!fm.key || !fm.label) return null;
 
   const body = fmMatch[2].trim();
   const sysMatch = body.match(/## system\n([\s\S]*?)(?=\n## |$)/);
   const promptMatch = body.match(/## prompt\n([\s\S]*?)(?=\n## |$)/);
 
+  const outputType = fm.outputType === 'explanation' ? 'explanation' : 'cards';
+
   return {
-    key: frontmatter.key,
-    label: frontmatter.label,
+    key: fm.key,
+    label: fm.label,
+    description: fm.description,
+    icon: fm.icon,
+    outputType,
     system: (sysMatch?.[1] || body).trim(),
     prompt: (promptMatch?.[1] || body).trim(),
   };
 }
 
-// Direct imports of preset .md files
-import contextRaw from '../presets/context.md?raw';
-import termsRaw from '../presets/terms.md?raw';
-
-const rawPresets = [contextRaw, termsRaw];
-
 export function loadPresets(): CardPreset[] {
-  return rawPresets.map(parsePreset).filter(Boolean) as CardPreset[];
+  return Object.values(RAW_PRESETS)
+    .map(parsePreset)
+    .filter((p): p is CardPreset => p !== null);
 }
 
 export const cardPresets = loadPresets();
