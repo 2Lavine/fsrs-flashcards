@@ -64,25 +64,29 @@ export const BrowsePage: React.FC = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* Toolbar */}
-      <div className="flex gap-2">
-        <Input
-          className="flex-1"
-          placeholder="Search cards..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <Select value={deckFilter} onValueChange={(v) => setDeckFilter(v ?? "")}>
-          <SelectTrigger>
-            <SelectValue placeholder="All Decks" />
-          </SelectTrigger>
-          <SelectContent>
-            {decks.map(d => (
-              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button onClick={openImportModal}>Import</Button>
-        <Button variant="outline" onClick={doExport}>Export</Button>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex gap-2 flex-1 min-w-0">
+          <Input
+            className="flex-1 min-w-0"
+            placeholder="Search cards..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          <Select value={deckFilter} onValueChange={(v) => setDeckFilter(v ?? "")}>
+            <SelectTrigger className="w-[140px] shrink-0">
+              <SelectValue placeholder="All Decks" />
+            </SelectTrigger>
+            <SelectContent>
+              {decks.map(d => (
+                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <Button onClick={openImportModal} className="flex-1 sm:flex-none">Import</Button>
+          <Button variant="outline" onClick={doExport} className="flex-1 sm:flex-none">Export</Button>
+        </div>
       </div>
 
       {/* Deck List */}
@@ -109,9 +113,9 @@ export const BrowsePage: React.FC = () => {
           <Button onClick={openImportModal}>Import Cards</Button>
         </div>
       ) : (
-        <div className="columns-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {cards.map(c => (
-            <div key={c.id} className="break-inside-avoid mb-3 border rounded-lg p-4">
+            <div key={c.id} className="border rounded-lg p-4 break-words min-w-0">
               <div className="font-medium text-sm leading-relaxed [&_p]:my-1 [&_strong]:font-semibold [&_em]:italic [&_code]:bg-muted-foreground/10 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs [&_pre]:bg-muted-foreground/10 [&_pre]:p-2 [&_pre]:rounded [&_pre]:overflow-x-auto [&_pre]:text-xs [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/30 [&_blockquote]:pl-2 [&_blockquote]:italic">
                 <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeSanitize]} remarkPlugins={[remarkGfm]}>
                   {renderClozeAsMarkdown(c.question, true)}
