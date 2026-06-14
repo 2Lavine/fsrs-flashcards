@@ -1,17 +1,6 @@
 {
-  "buildCommand": "pnpm build && node scripts/deploy-build.mjs",
-  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm build",
   "functions": {
-    "api/[...data].js": { "regions": ["hnd1"] },
-    "api/[...llm].js": { "regions": ["hnd1"] }
-  },
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "^/api/(settings/llm|llm/.*)$", "dest": "/api/[...llm]?...route=$1" },
-    { "src": "^/api/(.*)$", "dest": "/api/[...data]?...route=$1" },
-    { "handle": "error" },
-    { "status": 404, "src": "^(?!/api).*$", "dest": "/404.html" },
-    { "handle": "miss" },
-    { "src": "^/api/(.+)(?:\\.(?:js))$", "dest": "/api/$1", "check": true }
-  ]
+    "api/[...route].js": { "regions": ["hnd1"] }
+  }
 }

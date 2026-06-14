@@ -1,4 +1,5 @@
 import * as esbuild from 'esbuild';
+import { cpSync, mkdirSync, rmSync, existsSync } from 'fs';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -15,15 +16,14 @@ const common = {
   },
 };
 
-await Promise.all([
-  esbuild.build({
-    ...common,
-    entryPoints: [resolve(root, 'vercel-entry-data.ts')],
-    outfile: resolve(root, 'api/[...data].js'),
-  }),
-  esbuild.build({
-    ...common,
-    entryPoints: [resolve(root, 'vercel-entry-llm.ts')],
-    outfile: resolve(root, 'api/[...llm].js'),
-  }),
-]);
+await esbuild.build({
+  ...common,
+  entryPoints: [resolve(root, 'vercel-entry-api.ts')],
+  outfile: resolve(root, 'api/[...route].js'),
+});
+
+// Copy client dist to public/ so Vercel legacy mode serves the SPA
+const publicDir = resolve(root, 'public');
+if (existsSync(publicDir)) rmSync(publicDir, { recursive: true, force: true });
+mkdirSync(publicDir, { recursive: true });
+cpSync(resolve(root, 'packages/client/dist'), publicDir, { recursive: true });

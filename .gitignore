@@ -6,3 +6,6 @@ dist
 .vercel
 api/\[...data\].js
 api/\[...llm\].js
+api/\[...route\].js
+api-data.js
+api-llm.js
